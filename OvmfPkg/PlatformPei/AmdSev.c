@@ -22,8 +22,61 @@
 #include <PiPei.h>
 #include <Register/Amd/Cpuid.h>
 #include <Register/Cpuid.h>
+#include <Register/Amd/Msr.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/MemoryAllocationLib.h>
 
 #include "Platform.h"
+
+/**
+
+  Initialize SEV-ES support if running an SEV-ES guest.
+
+  **/
+STATIC
+VOID
+AmdSevEsInitialize (
+  VOID
+  )
+{
+  EFI_PHYSICAL_ADDRESS              GhcbBase;
+  RETURN_STATUS                     DecryptStatus, PcdStatus;
+
+  if (!MemEncryptSevEsIsEnabled ()) {
+    return;
+  }
+
+  //
+  // Allocate GHCB pages.
+  //
+  GhcbBase = (EFI_PHYSICAL_ADDRESS)AllocatePages (mMaxCpuCount);
+  ASSERT (GhcbBase);
+
+  DecryptStatus = MemEncryptSevClearPageEncMask (
+    0,
+    GhcbBase,
+    mMaxCpuCount,
+    TRUE
+    );
+  ASSERT_RETURN_ERROR (DecryptStatus);
+
+  BuildMemoryAllocationHob (
+    GhcbBase,
+    EFI_PAGES_TO_SIZE (mMaxCpuCount),
+    EfiBootServicesData
+    );
+
+  SetMem ((VOID *) GhcbBase, mMaxCpuCount * SIZE_4KB, 0);
+
+  PcdStatus = PcdSet64S (PcdGhcbBase, (UINT64)GhcbBase);
+  ASSERT_RETURN_ERROR (PcdStatus);
+  PcdStatus = PcdSet64S (PcdGhcbSize, (UINT64)EFI_PAGES_TO_SIZE (mMaxCpuCount));
+  ASSERT_RETURN_ERROR (PcdStatus);
+
+  DEBUG ((EFI_D_INFO, "SEV-ES is enabled, %u GHCB pages allocated starting at 0x%lx\n", mMaxCpuCount, GhcbBase));
+
+  AsmWriteMsr64 (MSR_SEV_ES_GHCB, GhcbBase);
+}
 
 /**
 
@@ -95,4 +148,9 @@ AmdSevInitialize (
       EfiBootServicesData                // MemoryType
       );
   }
+
+  //
+  // Check and perform SEV-ES initialization if required.
+  //
+  AmdSevEsInitialize ();
 }

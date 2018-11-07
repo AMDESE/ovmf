@@ -284,7 +284,7 @@ HandOffToDxeCore (
     //
     // Create page table and save PageMapLevel4 to CR3
     //
-    PageTables = CreateIdentityMappingPageTables (BaseOfStack, STACK_SIZE);
+    PageTables = CreateIdentityMappingPageTables (BaseOfStack, STACK_SIZE, NULL, 0);
 
     //
     // End of PEI phase signal
