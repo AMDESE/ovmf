@@ -3,6 +3,8 @@
 #include <Library/DebugLib.h>
 #include "AMDSevVcCommon.h"
 
+#define CR4_OSXSAVE (1 << 18)
+
 typedef enum {
   LongMode64Bit        = 0,
   LongModeCompat32Bit,
@@ -366,6 +368,37 @@ DoVcCommon(
 
   ExitCode = Regs->ExceptionData;
   switch (ExitCode) {
+  case SvmExitCpuid:
+    Ghcb->SaveArea.Rax = Regs->Rax;
+    Ghcb->SaveArea.Rcx = Regs->Rcx;
+    GhcbSetRegValid (Ghcb, GhcbRax);
+    GhcbSetRegValid (Ghcb, GhcbRcx);
+    if (Regs->Rax == 0x0000000d) {
+      Ghcb->SaveArea.XCr0 = (AsmReadCr4 () & CR4_OSXSAVE)
+        ? AsmXGetBv (0) : 1;
+      GhcbSetRegValid (Ghcb, GhcbXCr0);
+    }
+
+    Status = VmgExit (Ghcb, ExitCode, 0, 0);
+    if (Status) {
+      break;
+    }
+
+    if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+        !GhcbIsRegValid (Ghcb, GhcbRbx) ||
+        !GhcbIsRegValid (Ghcb, GhcbRcx) ||
+        !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+      VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
+      ASSERT (0);
+    }
+    Regs->Rax = Ghcb->SaveArea.Rax;
+    Regs->Rbx = Ghcb->SaveArea.Rbx;
+    Regs->Rcx = Ghcb->SaveArea.Rcx;
+    Regs->Rdx = Ghcb->SaveArea.Rdx;
+
+    AdvanceRip (Regs, 2);
+    break;
+
   case SvmExitIoioProt:
     InitInstructionData (&InstructionData, Ghcb);
     OpCode = (UINT8 *) DecodeInstruction (Regs, &InstructionData);
