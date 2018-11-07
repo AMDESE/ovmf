@@ -791,6 +791,14 @@ DoVcCommon(
 
     AdvanceRip (Regs, 2);
     break;
+  case SvmExitWbinvd:
+    Status = VmgExit (Ghcb, ExitCode, 0, 0);
+    if (Status) {
+      break;
+    }
+
+    AdvanceRip (Regs, 2);
+    break;
 
   case SvmExitNpf:
     InitInstructionData (&InstructionData, Ghcb);
