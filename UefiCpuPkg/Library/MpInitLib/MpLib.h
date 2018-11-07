@@ -262,6 +262,8 @@ struct _CPU_MP_DATA {
   // driver.
   //
   BOOLEAN                        WakeUpByInitSipiSipi;
+
+  UINT32                         SevEsActive;
 };
 
 extern EFI_GUID mCpuInitMpLibHobGuid;
