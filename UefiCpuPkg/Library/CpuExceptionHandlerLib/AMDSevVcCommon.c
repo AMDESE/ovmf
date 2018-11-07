@@ -244,6 +244,34 @@ IoioExitInfo (
   UINT64  ExitInfo = 0;
 
   switch (*(InstructionData->OpCodes)) {
+  case 0x6C: /* INSB / INS mem8, DX */
+    ExitInfo |= IOIO_TYPE_INS;
+    ExitInfo |= IOIO_DATA_8;
+    ExitInfo |= IOIO_SEG_ES;
+    ExitInfo |= ((Regs->Rdx & 0xffff) << 16);
+    break;
+  case 0x6D: /* INSW / INS mem16, DX / INSD / INS mem32, DX */
+    ExitInfo |= IOIO_TYPE_INS;
+    ExitInfo |= (InstructionData->DataSize == Size16Bits) ? IOIO_DATA_16
+                                                          : IOIO_DATA_32;
+    ExitInfo |= IOIO_SEG_ES;
+    ExitInfo |= ((Regs->Rdx & 0xffff) << 16);
+    break;
+
+  case 0x6E: /* OUTSB / OUTS DX, mem8 */
+    ExitInfo |= IOIO_TYPE_OUTS;
+    ExitInfo |= IOIO_DATA_8;
+    ExitInfo |= IOIO_SEG_DS;
+    ExitInfo |= ((Regs->Rdx & 0xffff) << 16);
+    break;
+  case 0x6F: /* OUTSW / OUTS DX, mem16 / OUTSD / OUTS DX, mem32 */
+    ExitInfo |= IOIO_TYPE_OUTS;
+    ExitInfo |= (InstructionData->DataSize == Size16Bits) ? IOIO_DATA_16
+                                                          : IOIO_DATA_32;
+    ExitInfo |= IOIO_SEG_DS;
+    ExitInfo |= ((Regs->Rdx & 0xffff) << 16);
+    break;
+
   case 0xE4: /* IN AL, imm8 */
     ExitInfo |= IOIO_TYPE_IN;
     ExitInfo |= IOIO_DATA_8;
@@ -329,7 +357,8 @@ DoVcCommon(
   SEV_ES_INSTRUCTION_DATA  InstructionData;
   UINTN                    ExitCode;
   UINTN                    Status;
-  UINT64                   ExitInfo1;
+  UINT64                   ExitInfo1, ExitInfo2;
+  BOOLEAN                  String;
   UINT8                    *OpCode;
   UINTN                    InstructionLength;
 
@@ -357,17 +386,57 @@ DoVcCommon(
     Ghcb->SaveArea.Rax = Regs->Rax;
     GhcbSetRegValid (Ghcb, GhcbRax);
 
-    Status = VmgExit (Ghcb, ExitCode, ExitInfo1, 0);
-    if (Status) {
-      break;
-    }
+    String = (ExitInfo1 & IOIO_TYPE_STR) ? TRUE : FALSE;
 
-    if (ExitInfo1 & IOIO_TYPE_IN) {
-      if (!GhcbIsRegValid (Ghcb, GhcbRax)) {
-        VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
-        ASSERT (0);
+    if (String) {
+      UINTN  IoBytes, VmgExitBytes;
+      UINTN  GhcbCount, OpCount;
+
+      Status = 0;
+
+      IoBytes = (ExitInfo1 >> 4) & 0x7;
+      GhcbCount = sizeof (Ghcb->SharedBuffer) / IoBytes;
+
+      OpCount = (ExitInfo1 & IOIO_REP) ? Regs->Rcx : 1;
+      while (OpCount) {
+        ExitInfo2 = MIN (OpCount, GhcbCount);
+        VmgExitBytes = ExitInfo2 * IoBytes;
+
+        if (!(ExitInfo1 & IOIO_TYPE_IN)) {
+          CopyMem (Ghcb->SharedBuffer, (VOID *) Regs->Rsi, VmgExitBytes);
+          Regs->Rsi += VmgExitBytes;
+        }
+
+        Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+        Status = VmgExit (Ghcb, ExitCode, ExitInfo1, ExitInfo2);
+        if (Status) {
+          break;
+        }
+
+        if (ExitInfo1 & IOIO_TYPE_IN) {
+          CopyMem ((VOID *) Regs->Rdi, Ghcb->SharedBuffer, VmgExitBytes);
+          Regs->Rdi += VmgExitBytes;
+        }
+
+        if (ExitInfo1 & IOIO_REP) {
+          Regs->Rcx -= ExitInfo2;
+        }
+
+        OpCount -= ExitInfo2;
       }
-      Regs->Rax = Ghcb->SaveArea.Rax;
+    } else {
+      Status = VmgExit (Ghcb, ExitCode, ExitInfo1, 0);
+      if (Status) {
+        break;
+      }
+
+      if (ExitInfo1 & IOIO_TYPE_IN) {
+        if (!GhcbIsRegValid (Ghcb, GhcbRax)) {
+          VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
+          ASSERT (0);
+        }
+        Regs->Rax = Ghcb->SaveArea.Rax;
+      }
     }
 
     switch (*OpCode) {
