@@ -486,6 +486,48 @@ DoVcCommon(
     AdvanceRip (Regs, InstructionLength);
     break;
 
+  case SvmExitMsr:
+    InitInstructionData (&InstructionData, Ghcb);
+    OpCode = (UINT8 *) DecodePrefixes (Regs, &InstructionData);
+    OpCode++;
+
+    ExitInfo1 = 0;
+
+    switch (*OpCode) {
+    case 0x30: // WRMSR
+      ExitInfo1 = 1;
+      Ghcb->SaveArea.Rax = Regs->Rax;
+      GhcbSetRegValid (Ghcb, GhcbRax);
+      Ghcb->SaveArea.Rdx = Regs->Rdx;
+      GhcbSetRegValid (Ghcb, GhcbRdx);
+      /* Fallthrough */
+    case 0x32: // RDMSR
+      Ghcb->SaveArea.Rcx = Regs->Rcx;
+      GhcbSetRegValid (Ghcb, GhcbRcx);
+      break;
+    default:
+      VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
+      ASSERT (0);
+    }
+
+    Status = VmgExit (Ghcb, ExitCode, ExitInfo1, 0);
+    if (Status) {
+      break;
+    }
+
+    if (!ExitInfo1) {
+      if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+          !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+        VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
+        ASSERT (0);
+      }
+      Regs->Rax = Ghcb->SaveArea.Rax;
+      Regs->Rdx = Ghcb->SaveArea.Rdx;
+    }
+
+    AdvanceRip (Regs, 2);
+    break;
+
   default:
     Status = VmgExit (Ghcb, SvmExitUnsupported, ExitCode, 0);
   }
