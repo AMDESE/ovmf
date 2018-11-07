@@ -45,6 +45,8 @@
   CpuExceptionCommon.c
   PeiDxeSmmCpuException.c
   DxeException.c
+  PeiDxeAMDSevVcHandler.c
+  AMDSevVcCommon.h
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard

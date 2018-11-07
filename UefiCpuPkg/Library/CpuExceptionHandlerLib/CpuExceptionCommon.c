@@ -20,7 +20,7 @@
 //
 // 1 means an error code will be pushed, otherwise 0
 //
-CONST UINT32 mErrorCodeFlag = 0x00027d00;
+CONST UINT32 mErrorCodeFlag = 0x20027d00;
 
 //
 // Define the maximum message length
