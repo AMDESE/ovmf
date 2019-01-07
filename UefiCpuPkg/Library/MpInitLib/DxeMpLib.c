@@ -96,17 +96,12 @@ GetWakeupBuffer (
   StartAddress = BASE_1MB;
   Status = gBS->AllocatePages (
                   AllocateMaxAddress,
-                  EfiBootServicesData,
+                  EfiReservedMemoryType,
                   EFI_SIZE_TO_PAGES (WakeupBufferSize),
                   &StartAddress
                   );
   ASSERT_EFI_ERROR (Status);
   if (!EFI_ERROR (Status)) {
-    Status = gBS->FreePages(
-               StartAddress,
-               EFI_SIZE_TO_PAGES (WakeupBufferSize)
-               );
-    ASSERT_EFI_ERROR (Status);
     DEBUG ((DEBUG_INFO, "WakeupBufferStart = %x, WakeupBufferSize = %x\n",
                         (UINTN) StartAddress, WakeupBufferSize));
   } else {
@@ -339,8 +334,11 @@ RelocateApLoop (
     MwaitSupport,
     CpuMpData->ApTargetCState,
     CpuMpData->PmCodeSegment,
-    mReservedTopOfApStack - ProcessorNumber * AP_SAFE_STACK_SIZE,
-    (UINTN) &mNumberToFinish
+    CpuMpData->Pm16CodeSegment,
+    CpuMpData->WakeupBuffer + SIZE_4KB - ProcessorNumber * AP_SAFE_STACK_SIZE,
+    (UINTN) &mNumberToFinish,
+    CpuMpData->SevEsAPBuffer,
+    CpuMpData->WakeupBuffer
     );
   //
   // It should never reach here
@@ -881,4 +879,45 @@ MpInitLibEnableDisableAP (
   }
 
   return Status;
+}
+
+/**
+  MP finalize ...
+
+  @param[in] CpuMpData  The pointer to CPU MP Data structure will be saved.
+**/
+EFI_STATUS
+MpFinalize (
+  IN CPU_MP_DATA   *CpuMpData
+  )
+{
+  if (CpuMpData->SevEsActive) {
+    //
+    // Perform SEV-ES specific finalization
+    //
+    if (CpuMpData->WakeupBuffer == (UINTN) -1) {
+      //
+      // No APs parked in UEFI, clear the GHCB
+      //
+      AsmWriteMsr64 (MSR_SEV_ES_GHCB, 0);
+    } else {
+      //
+      // Re-use reserved memory area below 1MB from WakeupBuffer
+      //
+      CopyMem (
+        (VOID *) CpuMpData->WakeupBuffer,
+        (VOID *) CpuMpData->AddressMap.RendezvousFunnelAddress +
+                   CpuMpData->AddressMap.SwitchToRealPM16ModeOffset,
+        CpuMpData->AddressMap.SwitchToRealPM16ModeSize
+        );
+
+      //
+      // Point the GHCB at the AP jump table to communicate the address to
+      // the booting system.
+      //
+      AsmWriteMsr64 (MSR_SEV_ES_GHCB, (CpuMpData->SevEsAPBuffer) | 0x03);
+    }
+  }
+
+  return EFI_SUCCESS;
 }
