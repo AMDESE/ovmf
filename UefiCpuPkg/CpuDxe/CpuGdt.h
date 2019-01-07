@@ -42,7 +42,7 @@ struct _GDT_ENTRIES {
   GDT_ENTRY LinearCode;
   GDT_ENTRY SysData;
   GDT_ENTRY SysCode;
-  GDT_ENTRY Spare4;
+  GDT_ENTRY SysCode16;
   GDT_ENTRY LinearData64;
   GDT_ENTRY LinearCode64;
   GDT_ENTRY Spare5;
