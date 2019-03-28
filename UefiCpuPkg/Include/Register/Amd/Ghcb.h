@@ -9,6 +9,11 @@
 #define UD_EXCEPTION  6
 #define GP_EXCEPTION 13
 
+#define GHCB_VERSION_MIN     1
+#define GHCB_VERSION_MAX     1
+
+#define GHCB_STANDARD_USAGE  0
+
 typedef enum {
   SvmExitDr7Write      = 0x37,
   SvmExitRdtsc         = 0x6E,
@@ -57,106 +62,34 @@ typedef enum {
 } GHCB_REGISTER;
 
 typedef struct {
-  UINT64                 X87Dp;
-  UINT32                 MxCsr;
-  UINT16                 X87Ftw;
-  UINT16                 X87Fsw;
-  UINT16                 X87Fcw;
-  UINT16                 X87Fop;
-  UINT16                 X87Ds;
-  UINT16                 X87Cs;
-  UINT64                 X87Rip;
-  UINT8                  FpregX87[80];
-  UINT8                  FpregXmm[256];
-  UINT8                  FpregYmm[256];
-  UINT8                  Reserved1[3472];
-  UINT8                  ValidBitmap[64];
-} __attribute__ ((__packed__)) __attribute__ ((aligned(SIZE_4KB))) GHCB_X87_STATE;
-
-typedef struct {
-  UINT16                 Selector;
-  UINT16                 Attrib;
-  UINT32                 Limit;
-  UINT64                 Base;
-} __attribute__ ((__packed__)) GHCB_SEGMENT;
-
-typedef struct {
-  GHCB_SEGMENT           Es;
-  GHCB_SEGMENT           Cs;
-  GHCB_SEGMENT           Ss;
-  GHCB_SEGMENT           Ds;
-  GHCB_SEGMENT           Fs;
-  GHCB_SEGMENT           Gs;
-  GHCB_SEGMENT           Gdtr;
-  GHCB_SEGMENT           Ldtr;
-  GHCB_SEGMENT           Idtr;
-  GHCB_SEGMENT           Tr;
-
-  UINT8                  Reserved1[43];
+  UINT8                  Reserved1[203];
   UINT8                  Cpl;
-  UINT8                  Reserved2[4];
-  UINT64                 Efer;
-  UINT8                  Reserved3[112];
-  UINT64                 Cr4;
-  UINT64                 Cr3;
-  UINT64                 Cr0;
+  UINT8                  Reserved2[148];
   UINT64                 Dr7;
-  UINT64                 Dr6;
-  UINT64                 Rflags;
-  UINT64                 Rip;
-  UINT8                  Reserved4[88];
-  UINT64                 Rsp;
-  UINT8                  Reserved5[24];
+  UINT8                  Reserved3[144];
   UINT64                 Rax;
-  UINT64                 Star;
-  UINT64                 LStar;
-  UINT64                 CStar;
-  UINT64                 SfMask;
-  UINT64                 KernelGsBase;
-  UINT64                 SysEnterCs;
-  UINT64                 SysEnterEsp;
-  UINT64                 SysEnterEip;
-  UINT64                 Cr2;
-  UINT8                  Reserved6[32];
-  UINT64                 GPat;
-  UINT64                 DbgCtl;
-  UINT64                 BrFrom;
-  UINT64                 BrTo;
-  UINT64                 LastExcpFrom;
-  UINT64                 LastExcpTo;
-  UINT8                  Reserved7[112];
+  UINT8                  Reserved4[264];
   UINT64                 Rcx;
   UINT64                 Rdx;
   UINT64                 Rbx;
-  UINT64                 Reserved8;
-  UINT64                 Rbp;
-  UINT64                 Rsi;
-  UINT64                 Rdi;
-  UINT64                 R8;
-  UINT64                 R9;
-  UINT64                 R10;
-  UINT64                 R11;
-  UINT64                 R12;
-  UINT64                 R13;
-  UINT64                 R14;
-  UINT64                 R15;
-  UINT64                 Zero;
-  UINT64                 ChecksumPointer;
+  UINT8                  Reserved5[112];
   UINT64                 SwExitCode;
   UINT64                 SwExitInfo1;
   UINT64                 SwExitInfo2;
   UINT64                 SwScratch;
-  UINT8                  Reserved9[56];
+  UINT8                  Reserved6[56];
   UINT64                 XCr0;
   UINT8                  ValidBitmap[16];
   UINT64                 X87StateGpa;
+  UINT8                  Reserved7[1016];
 } __attribute__ ((__packed__)) GHCB_SAVE_AREA;
 
 typedef struct {
   GHCB_SAVE_AREA         SaveArea;
-  UINT8                  Reserved10[1014];
+  UINT8                  SharedBuffer[2032];
+  UINT8                  Reserved1[10];
   UINT16                 ProtocolVersion;
-  UINT8                  SharedBuffer[2048];
+  UINT32                 GhcbUsage;
 } __attribute__ ((__packed__)) __attribute__ ((aligned(SIZE_4KB))) GHCB;
 
 typedef union {
