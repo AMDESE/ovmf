@@ -73,13 +73,16 @@ ErasePolarity = 1
 BlockSize     = 0x10000
 NumBlocks     = 0xC0
 
-0x000000|0x006000
+0x000000|0x007000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
 
-0x006000|0x001000
+0x007000|0x001000
+gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbSize
+
+0x008000|0x001000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageSize
 
-0x007000|0x001000
+0x009000|0x001000
 gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|gUefiOvmfPkgTokenSpaceGuid.PcdGuidedExtractHandlerTableSize
 
 0x010000|0x010000

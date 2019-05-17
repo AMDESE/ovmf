@@ -55,7 +55,7 @@
 %ifdef ARCH_X64
   #include <AutoGen.h>
 
-  %if (FixedPcdGet32 (PcdOvmfSecPageTablesSize) != 0x6000)
+  %if (FixedPcdGet32 (PcdOvmfSecPageTablesSize) != 0x7000)
     %error "This implementation inherently depends on PcdOvmfSecPageTablesSize"
   %endif
 

@@ -24,6 +24,32 @@
 #define __FAM17_MSR_H__
 
 /**
+  Secure Encrypted Virtualization - Encrypted State (SEV-ES) GHCB register
+
+**/
+#define MSR_SEV_ES_GHCB                    0xc0010130
+
+/**
+  MSR information returned for #MSR_SEV_ES_GHCB
+**/
+typedef union {
+  struct {
+    UINT32  GhcbNegotiateBit:1;
+
+    UINT32  Reserved:31;
+  } Bits;
+
+  struct {
+    UINT8   Reserved[3];
+    UINT8   SevEncryptionBitPos;
+    UINT16  SevEsProtocolMin;
+    UINT16  SevEsProtocolMax;
+  } GhcbProtocol;
+
+  UINT64  GhcbPhysicalAddress;
+} MSR_SEV_ES_GHCB_REGISTER;
+
+/**
   Secure Encrypted Virtualization (SEV) status register
 
 **/
