@@ -30,6 +30,7 @@
 #include <Library/PeCoffExtraActionLib.h>
 #include <Library/ExtractGuidedSectionLib.h>
 #include <Library/LocalApicLib.h>
+#include <Library/CpuExceptionHandlerLib.h>
 
 #include <Ppi/TemporaryRamSupport.h>
 
@@ -743,6 +744,21 @@ SecCoreStartupWithStack (
     Table[Index] = 0;
   }
 
+  //
+  // Initialize IDT
+  //
+  IdtTableInStack.PeiService = NULL;
+  for (Index = 0; Index < SEC_IDT_ENTRY_COUNT; Index ++) {
+    CopyMem (&IdtTableInStack.IdtTable[Index], &mIdtEntryTemplate, sizeof (mIdtEntryTemplate));
+  }
+
+  IdtDescriptor.Base  = (UINTN)&IdtTableInStack.IdtTable;
+  IdtDescriptor.Limit = (UINT16)(sizeof (IdtTableInStack.IdtTable) - 1);
+
+  AsmWriteIdtr (&IdtDescriptor);
+
+  InitializeCpuExceptionHandlers (NULL);
+
   ProcessLibraryConstructorList (NULL, NULL);
 
   //
@@ -761,19 +777,6 @@ SecCoreStartupWithStack (
   // to be compliant with UEFI spec.
   //
   InitializeFloatingPointUnits ();
-
-  //
-  // Initialize IDT
-  //  
-  IdtTableInStack.PeiService = NULL;
-  for (Index = 0; Index < SEC_IDT_ENTRY_COUNT; Index ++) {
-    CopyMem (&IdtTableInStack.IdtTable[Index], &mIdtEntryTemplate, sizeof (mIdtEntryTemplate));
-  }
-
-  IdtDescriptor.Base  = (UINTN)&IdtTableInStack.IdtTable;
-  IdtDescriptor.Limit = (UINT16)(sizeof (IdtTableInStack.IdtTable) - 1);
-
-  AsmWriteIdtr (&IdtDescriptor);
 
 #if defined (MDE_CPU_X64)
   //
