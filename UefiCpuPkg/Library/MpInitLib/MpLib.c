@@ -1644,6 +1644,7 @@ MpInitLibInitialize (
     CpuMpData->MicrocodePatchAddress = (UINTN)MicrocodePatchInRam;
   }
 
+  CpuMpData->SevEsActive      = PcdGet32 (PcdCpuSevEsActive);
   InitializeSpinLock(&CpuMpData->MpLock);
 
   //
