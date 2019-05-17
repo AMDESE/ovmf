@@ -45,6 +45,8 @@
   CpuExceptionCommon.c
   PeiCpuException.c
   PeiDxeSmmCpuException.c
+  PeiDxeAMDSevVcHandler.c
+  AMDSevVcCommon.h
 
 [Packages]
   MdePkg/MdePkg.dec
