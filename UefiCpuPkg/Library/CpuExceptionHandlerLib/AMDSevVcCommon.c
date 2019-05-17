@@ -251,6 +251,54 @@ UnsupportedExit (
   return Status;
 }
 
+STATIC
+UINTN
+MsrExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  ExitInfo1;
+  UINTN   Status;
+
+  ExitInfo1 = 0;
+
+  switch (*(InstructionData->OpCodes + 1)) {
+  case 0x30: // WRMSR
+    ExitInfo1 = 1;
+    Ghcb->SaveArea.Rax = Regs->Rax;
+    GhcbSetRegValid (Ghcb, GhcbRax);
+    Ghcb->SaveArea.Rdx = Regs->Rdx;
+    GhcbSetRegValid (Ghcb, GhcbRdx);
+    /* Fallthrough */
+  case 0x32: // RDMSR
+    Ghcb->SaveArea.Rcx = Regs->Rcx;
+    GhcbSetRegValid (Ghcb, GhcbRcx);
+    break;
+  default:
+    VmgExit (Ghcb, SvmExitUnsupported, SvmExitMsr, 0);
+    ASSERT (0);
+  }
+
+  Status = VmgExit (Ghcb, SvmExitMsr, ExitInfo1, 0);
+  if (Status) {
+    return Status;
+  }
+
+  if (!ExitInfo1) {
+    if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+        !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+      VmgExit (Ghcb, SvmExitUnsupported, SvmExitMsr, 0);
+      ASSERT (0);
+    }
+    Regs->Rax = Ghcb->SaveArea.Rax;
+    Regs->Rdx = Ghcb->SaveArea.Rdx;
+  }
+
+  return 0;
+}
+
 #define IOIO_TYPE_STR  (1 << 2)
 #define IOIO_TYPE_IN   1
 #define IOIO_TYPE_INS  (IOIO_TYPE_IN | IOIO_TYPE_STR)
@@ -535,6 +583,10 @@ DoVcCommon(
 
   case SvmExitIoioProt:
     NaeExit = IoioExit;
+    break;
+
+  case SvmExitMsr:
+    NaeExit = MsrExit;
     break;
 
   default:
