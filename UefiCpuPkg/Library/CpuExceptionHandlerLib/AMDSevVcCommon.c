@@ -521,6 +521,24 @@ UnsupportedExit (
 
 STATIC
 UINTN
+WbinvdExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINTN   Status;
+
+  Status = VmgExit (Ghcb, SvmExitWbinvd, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  return 0;
+}
+
+STATIC
+UINTN
 MsrExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -855,6 +873,10 @@ DoVcCommon(
 
   case SvmExitMsr:
     NaeExit = MsrExit;
+    break;
+
+  case SvmExitWbinvd:
+    NaeExit = WbinvdExit;
     break;
 
   case SvmExitNpf:
