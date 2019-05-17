@@ -111,6 +111,7 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApStackSize
   gUefiCpuPkgTokenSpaceGuid.PcdGhcbBase
   gUefiCpuPkgTokenSpaceGuid.PcdGhcbSize
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuSevEsActive
 
 [FixedPcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress

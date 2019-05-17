@@ -66,6 +66,7 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApLoopMode                       ## CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApTargetCstate                   ## SOMETIMES_CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSevEsActive                      ## CONSUMES
+  gUefiCpuPkgTokenSpaceGuid.PcdGhcbBase                            ## CONSUMES
 
 [Guids]
   gEdkiiS3SmmInitDoneGuid
