@@ -331,8 +331,11 @@ VOID
   IN BOOLEAN                 MwaitSupport,
   IN UINTN                   ApTargetCState,
   IN UINTN                   PmCodeSegment,
+  IN UINTN                   Pm16CodeSegment,
   IN UINTN                   TopOfApStack,
-  IN UINTN                   NumberToFinish
+  IN UINTN                   NumberToFinish,
+  IN UINTN                   SevEsAPJumpTable,
+  IN UINTN                   WakeupBuffer
   );
 
 /**
@@ -647,6 +650,16 @@ IsMwaitSupport (
 VOID
 EnableDebugAgent (
   VOID
+  );
+
+/**
+  MP finalize ...
+
+  @param[in] CpuMpData  The pointer to CPU MP Data structure will be saved.
+**/
+EFI_STATUS
+MpFinalize (
+  IN CPU_MP_DATA   *CpuMpData
   );
 
 #endif

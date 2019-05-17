@@ -68,7 +68,7 @@ AmdSevEsInitialize (
   BuildMemoryAllocationHob (
     GhcbBase,
     EFI_PAGES_TO_SIZE (GhcbPageCount),
-    EfiBootServicesData
+    EfiReservedMemoryType
     );
 
   SetMem ((VOID *) GhcbBase, GhcbPageCount * SIZE_4KB, 0);
