@@ -49,7 +49,7 @@ AmdSevEsInitialize (
     return;
   }
 
-  GhcbPageCount = mMaxCpuCount;
+  GhcbPageCount = mMaxCpuCount * 2;
 
   //
   // Allocate GHCB pages.
