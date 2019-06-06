@@ -115,7 +115,6 @@ MemEncryptSevIsEnabled (
   return mSevStatus;
 }
 
-
 /**
   Locate the page range that covers the initial (pre-SMBASE-relocation) SMRAM
   Save State Map.

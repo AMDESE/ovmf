@@ -207,6 +207,8 @@ EnableExecuteDisableBit (
   @param[in, out] PageEntry2M           Pointer to 2M page entry.
   @param[in]      StackBase             Stack base address.
   @param[in]      StackSize             Stack size.
+  @param[in]      GhcbBase              GHCB page area base address.
+  @param[in]      GhcbSize              GHCB page area size.
 
 **/
 VOID
@@ -214,7 +216,9 @@ Split2MPageTo4K (
   IN EFI_PHYSICAL_ADDRESS               PhysicalAddress,
   IN OUT UINT64                         *PageEntry2M,
   IN EFI_PHYSICAL_ADDRESS               StackBase,
-  IN UINTN                              StackSize
+  IN UINTN                              StackSize,
+  IN EFI_PHYSICAL_ADDRESS               GhcbBase,
+  IN UINTN                              GhcbSize
   );
 
 /**
@@ -223,6 +227,8 @@ Split2MPageTo4K (
 
   @param[in] StackBase  Stack base address.
   @param[in] StackSize  Stack size.
+  @param[in] GhcbBase   GHCB page area base address.
+  @param[in] GhcbSize   GHCB page area size.
 
   @return The address of 4 level page map.
 
@@ -230,7 +236,9 @@ Split2MPageTo4K (
 UINTN
 CreateIdentityMappingPageTables (
   IN EFI_PHYSICAL_ADDRESS   StackBase,
-  IN UINTN                  StackSize
+  IN UINTN                  StackSize,
+  IN EFI_PHYSICAL_ADDRESS   GhcbBase,
+  IN UINTN                  GhcbkSize
   );
 
 
