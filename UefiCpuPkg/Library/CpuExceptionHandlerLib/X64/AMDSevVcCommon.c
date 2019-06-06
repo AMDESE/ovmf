@@ -5,6 +5,12 @@
 
 #define CR4_OSXSAVE (1 << 18)
 
+#define DR7_RESET_VALUE 0x400
+typedef struct {
+  BOOLEAN  Dr7Cached;
+  UINT64   Dr7;
+} SEV_ES_PER_CPU_DATA;
+
 typedef enum {
   LongMode64Bit        = 0,
   LongModeCompat32Bit,
@@ -1043,6 +1049,60 @@ RdtscExit (
   return 0;
 }
 
+STATIC
+UINTN
+Dr7WriteExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  SEV_ES_INSTRUCTION_OPCODE_EXT  *Ext = &InstructionData->Ext;
+  SEV_ES_PER_CPU_DATA            *SevEsData = (SEV_ES_PER_CPU_DATA *) (Ghcb + 1);
+  INTN                           *Register;
+  UINTN                          Status;
+
+  DecodeModRm (Regs, InstructionData);
+
+  /* MOV DRn always treats MOD == 3 no matter how encoded */
+  Register = GetRegisterPointer (Regs, Ext->ModRm.Rm);
+
+  /* Using a value of 0 for ExitInfo1 means RAX holds the value */
+  Ghcb->SaveArea.Rax = *Register;
+  GhcbSetRegValid (Ghcb, GhcbRax);
+
+  Status = VmgExit (Ghcb, SvmExitDr7Write, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  SevEsData->Dr7 = *Register;
+  SevEsData->Dr7Cached = TRUE;
+
+  return 0;
+}
+
+STATIC
+UINTN
+Dr7ReadExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  SEV_ES_INSTRUCTION_OPCODE_EXT  *Ext = &InstructionData->Ext;
+  SEV_ES_PER_CPU_DATA            *SevEsData = (SEV_ES_PER_CPU_DATA *) (Ghcb + 1);
+  INTN                           *Register;
+
+  DecodeModRm (Regs, InstructionData);
+
+  /* MOV DRn always treats MOD == 3 no matter how encoded */
+  Register = GetRegisterPointer (Regs, Ext->ModRm.Rm);
+  *Register = (SevEsData->Dr7Cached) ? SevEsData->Dr7 : DR7_RESET_VALUE;
+
+  return 0;
+}
+
 UINTN
 DoVcCommon (
   GHCB                *Ghcb,
@@ -1059,6 +1119,14 @@ DoVcCommon (
 
   ExitCode = Regs->ExceptionData;
   switch (ExitCode) {
+  case SvmExitDr7Read:
+    NaeExit = Dr7ReadExit;
+    break;
+
+  case SvmExitDr7Write:
+    NaeExit = Dr7WriteExit;
+    break;
+
   case SvmExitRdtsc:
     NaeExit = RdtscExit;
     break;
