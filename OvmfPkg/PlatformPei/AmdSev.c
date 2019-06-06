@@ -43,6 +43,8 @@ AmdSevEsInitialize (
   PHYSICAL_ADDRESS  GhcbBasePa;
   UINTN             GhcbPageCount;
   RETURN_STATUS     DecryptStatus, PcdStatus;
+  IA32_DESCRIPTOR   Gdtr;
+  VOID              *Gdt;
 
   if (!MemEncryptSevEsIsEnabled ()) {
     return;
@@ -82,6 +84,20 @@ AmdSevEsInitialize (
   DEBUG ((EFI_D_INFO, "SEV-ES is enabled, %u GHCB pages allocated starting at 0x%lx\n", GhcbPageCount, GhcbBase));
 
   AsmWriteMsr64 (MSR_SEV_ES_GHCB, (UINT64)GhcbBasePa);
+
+  //
+  // The SEV support will clear the C-bit from the non-RAM areas. Since
+  // the GDT initially lives in that area and it will be read when a #VC
+  // exception happens, it needs to be moved to RAM for an SEV-ES guest.
+  //
+  AsmReadGdtr (&Gdtr);
+
+  Gdt = AllocatePool (Gdtr.Limit + 1);
+  ASSERT (Gdt);
+
+  CopyMem (Gdt, (VOID *) Gdtr.Base, Gdtr.Limit + 1);
+  Gdtr.Base = (UINTN) Gdt;
+  AsmWriteGdtr (&Gdtr);
 }
 
 /**
