@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 **/
 
 #include "CpuExceptionCommon.h"
+#include "AMDSevVcCommon.h"
 #include <Library/DebugLib.h>
 
 /**
@@ -90,6 +91,21 @@ CommonExceptionHandlerWorker (
     //
     CpuDeadLoop ();
     break;
+  }
+
+  if (ExceptionType == VC_EXCEPTION) {
+    UINTN  Status;
+    //
+    // #VC must be handled for an SEV-ES guest
+    //
+    Status = DoVcException(SystemContext);
+    if (Status) {
+      // Exception not handled - Status contains the desired exception now
+      ExceptionType = Status;
+    } else {
+      // Exception handled
+      return;
+    }
   }
 
   if (ExternalInterruptHandler != NULL &&

@@ -14,6 +14,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <PiPei.h>
 #include "CpuExceptionCommon.h"
+#include "AMDSevVcCommon.h"
 
 CONST UINTN    mDoFarReturnFlag  = 0;
 
@@ -30,6 +31,21 @@ CommonExceptionHandler (
   IN EFI_SYSTEM_CONTEXT   SystemContext
   )
 {
+  if (ExceptionType == VC_EXCEPTION) {
+    UINTN  Status;
+    //
+    // #VC must be handled for an SEV-ES guest
+    //
+    Status = DoVcException(SystemContext);
+    if (Status) {
+      // Exception not handled - Status contains the desired exception now
+      ExceptionType = Status;
+    } else {
+      // Exception handled
+      return;
+    }
+  }
+
   //
   // Initialize the serial port before dumping.
   //
