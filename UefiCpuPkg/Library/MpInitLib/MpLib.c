@@ -13,6 +13,8 @@
 **/
 
 #include "MpLib.h"
+#include <Register/Amd/Fam17Msr.h>
+#include <Register/Amd/Ghcb.h>
 
 EFI_GUID mCpuInitMpLibHobGuid = CPU_INIT_MP_LIB_HOB_GUID;
 
@@ -562,6 +564,108 @@ InitializeApData (
 }
 
 /**
+  Get Protected mode code segment with 16-bit default addressing
+  from current GDT table.
+
+  @return  Protected mode 16-bit code segment value.
+**/
+STATIC
+UINT16
+GetProtectedMode16CS (
+  VOID
+  )
+{
+  IA32_DESCRIPTOR          GdtrDesc;
+  IA32_SEGMENT_DESCRIPTOR  *GdtEntry;
+  UINTN                    GdtEntryCount;
+  UINT16                   Index;
+
+  Index = (UINT16) -1;
+  AsmReadGdtr (&GdtrDesc);
+  GdtEntryCount = (GdtrDesc.Limit + 1) / sizeof (IA32_SEGMENT_DESCRIPTOR);
+  GdtEntry = (IA32_SEGMENT_DESCRIPTOR *) GdtrDesc.Base;
+  for (Index = 0; Index < GdtEntryCount; Index++) {
+    if (GdtEntry->Bits.L == 0 &&
+        GdtEntry->Bits.DB == 0 &&
+        GdtEntry->Bits.Type > 8) {
+      break;
+    }
+    GdtEntry++;
+  }
+  ASSERT (Index != GdtEntryCount);
+  return Index * 8;
+}
+
+/**
+  Get Protected mode code segment with 32-bit default addressing
+  from current GDT table.
+
+  @return  Protected mode 32-bit code segment value.
+**/
+STATIC
+UINT16
+GetProtectedMode32CS (
+  VOID
+  )
+{
+  IA32_DESCRIPTOR          GdtrDesc;
+  IA32_SEGMENT_DESCRIPTOR  *GdtEntry;
+  UINTN                    GdtEntryCount;
+  UINT16                   Index;
+
+  Index = (UINT16) -1;
+  AsmReadGdtr (&GdtrDesc);
+  GdtEntryCount = (GdtrDesc.Limit + 1) / sizeof (IA32_SEGMENT_DESCRIPTOR);
+  GdtEntry = (IA32_SEGMENT_DESCRIPTOR *) GdtrDesc.Base;
+  for (Index = 0; Index < GdtEntryCount; Index++) {
+    if (GdtEntry->Bits.L == 0 &&
+        GdtEntry->Bits.DB == 1 &&
+        GdtEntry->Bits.Type > 8) {
+      break;
+    }
+    GdtEntry++;
+  }
+  ASSERT (Index != GdtEntryCount);
+  return Index * 8;
+}
+
+/**
+  Reset an AP when in SEV-ES mode.
+
+  @retval EFI_DEVICE_ERROR        Reset of AP failed.
+**/
+STATIC
+VOID
+MpInitLibSevEsAPReset (
+  GHCB                         *Ghcb,
+  CPU_MP_DATA                  *CpuMpData
+  )
+{
+  UINT16           Code16, Code32;
+  AP_RESET         *APResetFn;
+  UINTN            BufferStart;
+  UINTN            StackStart;
+
+  Code16 = GetProtectedMode16CS ();
+  Code32 = GetProtectedMode32CS ();
+
+  if (CpuMpData->WakeupBufferHigh != 0) {
+    APResetFn = (AP_RESET *) (CpuMpData->WakeupBufferHigh + CpuMpData->AddressMap.SwitchToRealNoNxOffset);
+  } else {
+    APResetFn = (AP_RESET *) (CpuMpData->MpCpuExchangeInfo->BufferStart + CpuMpData->AddressMap.SwitchToRealOffset);
+  }
+
+  BufferStart = CpuMpData->MpCpuExchangeInfo->BufferStart;
+  StackStart = CpuMpData->SevEsAPResetStackStart -
+                 (AP_RESET_STACK_SIZE * GetApicId ());
+
+  //
+  // This call never returns.
+  //
+  APResetFn (BufferStart, Code16, Code32, StackStart);
+}
+
+/**
   This function will be called from AP reset code if BSP uses WakeUpAP.
 
   @param[in] ExchangeInfo     Pointer to the MP exchange info buffer
@@ -719,7 +823,21 @@ ApWakeupFunction (
       //
       while (TRUE) {
         DisableInterrupts ();
-        CpuSleep ();
+        if (CpuMpData->SevEsActive) {
+          MSR_SEV_ES_GHCB_REGISTER  Msr;
+          GHCB                      *Ghcb;
+
+          Msr.GhcbPhysicalAddress = AsmReadMsr64 (MSR_SEV_ES_GHCB);
+          Ghcb = Msr.Ghcb;
+
+          VmgInit (Ghcb);
+          VmgExit (Ghcb, SvmExitApResetHold, 0, 0);
+
+          /*TODO: Check return value to verify SIPI issued */
+          MpInitLibSevEsAPReset (Ghcb, CpuMpData);
+        } else {
+          CpuSleep ();
+        }
         CpuPause ();
       }
     }
@@ -819,6 +937,9 @@ FillExchangeInfoData (
 
   ExchangeInfo->InitializeFloatingPointUnitsAddress = (UINTN)InitializeFloatingPointUnits;
 
+  ExchangeInfo->SevEsActive     = CpuMpData->SevEsActive;
+  ExchangeInfo->GhcbBase        = CpuMpData->GhcbBase;
+
   //
   // Get the BSP's data of GDT and IDT
   //
@@ -845,8 +966,9 @@ FillExchangeInfoData (
   // EfiBootServicesCode to avoid page fault if NX memory protection is enabled.
   //
   if (CpuMpData->WakeupBufferHigh != 0) {
-    Size = CpuMpData->AddressMap.RendezvousFunnelSize -
-           CpuMpData->AddressMap.ModeTransitionOffset;
+    Size = CpuMpData->AddressMap.RendezvousFunnelSize +
+             CpuMpData->AddressMap.SwitchToRealSize -
+             CpuMpData->AddressMap.ModeTransitionOffset;
     CopyMem (
       (VOID *)CpuMpData->WakeupBufferHigh,
       CpuMpData->AddressMap.RendezvousFunnelAddress +
@@ -899,7 +1021,8 @@ BackupAndPrepareWakeupBuffer(
   CopyMem (
     (VOID *) CpuMpData->WakeupBuffer,
     (VOID *) CpuMpData->AddressMap.RendezvousFunnelAddress,
-    CpuMpData->AddressMap.RendezvousFunnelSize
+    CpuMpData->AddressMap.RendezvousFunnelSize +
+      CpuMpData->AddressMap.SwitchToRealSize
     );
 }
 
@@ -921,6 +1044,40 @@ RestoreWakeupBuffer(
 }
 
 /**
+  Calculate the size of the reset stack.
+**/
+STATIC
+UINTN
+GetApResetStackSize(
+  VOID
+  )
+{
+  return AP_RESET_STACK_SIZE * PcdGet32(PcdCpuMaxLogicalProcessorNumber);
+}
+
+/**
+  Calculate the size of the reset vector.
+
+  @param[in]  AddressMap  The pointer to Address Map structure.
+**/
+STATIC
+UINTN
+GetApResetVectorSize(
+  IN MP_ASSEMBLY_ADDRESS_MAP  *AddressMap
+  )
+{
+  UINTN  Size;
+
+  Size = ALIGN_VALUE (AddressMap->RendezvousFunnelSize +
+                        AddressMap->SwitchToRealSize +
+                        sizeof (MP_CPU_EXCHANGE_INFO),
+                      CPU_STACK_ALIGNMENT);
+  Size += GetApResetStackSize ();
+
+  return Size;
+}
+
+/**
   Allocate reset vector buffer.
 
   @param[in, out]  CpuMpData  The pointer to CPU MP Data structure.
@@ -933,16 +1090,22 @@ AllocateResetVector (
   UINTN           ApResetVectorSize;
 
   if (CpuMpData->WakeupBuffer == (UINTN) -1) {
-    ApResetVectorSize = CpuMpData->AddressMap.RendezvousFunnelSize +
-                          sizeof (MP_CPU_EXCHANGE_INFO);
+    ApResetVectorSize = GetApResetVectorSize (&CpuMpData->AddressMap);
 
     CpuMpData->WakeupBuffer      = GetWakeupBuffer (ApResetVectorSize);
     CpuMpData->MpCpuExchangeInfo = (MP_CPU_EXCHANGE_INFO *) (UINTN)
-                    (CpuMpData->WakeupBuffer + CpuMpData->AddressMap.RendezvousFunnelSize);
+                    (CpuMpData->WakeupBuffer +
+                       CpuMpData->AddressMap.RendezvousFunnelSize +
+                       CpuMpData->AddressMap.SwitchToRealSize);
     CpuMpData->WakeupBufferHigh  = GetModeTransitionBuffer (
-                                    CpuMpData->AddressMap.RendezvousFunnelSize -
+                                    CpuMpData->AddressMap.RendezvousFunnelSize +
+                                    CpuMpData->AddressMap.SwitchToRealSize -
                                     CpuMpData->AddressMap.ModeTransitionOffset
                                     );
+    //
+    // The reset stack starts at the end of the buffer.
+    //
+    CpuMpData->SevEsAPResetStackStart = CpuMpData->WakeupBuffer + ApResetVectorSize;
   }
   BackupAndPrepareWakeupBuffer (CpuMpData);
 }
@@ -958,6 +1121,21 @@ FreeResetVector (
   )
 {
   RestoreWakeupBuffer (CpuMpData);
+}
+
+/**
+  Allocate ...
+
+  @param[in, out]  CpuMpData  The pointer to CPU MP Data structure.
+**/
+VOID
+AllocateSevEsAPMemory (
+  IN OUT CPU_MP_DATA          *CpuMpData
+  )
+{
+  if (CpuMpData->SevEsAPBuffer == (UINTN) -1) {
+    CpuMpData->SevEsAPBuffer = CpuMpData->SevEsActive ? GetSevEsAPMemory () : 0;
+  }
 }
 
 /**
@@ -990,10 +1168,12 @@ WakeUpAP (
   CpuMpData->FinishedCount = 0;
   ResetVectorRequired = FALSE;
 
+  AllocateResetVector (CpuMpData);
+  AllocateSevEsAPMemory (CpuMpData);
+
   if (CpuMpData->WakeUpByInitSipiSipi ||
       CpuMpData->InitFlag   != ApInitDone) {
     ResetVectorRequired = TRUE;
-    AllocateResetVector (CpuMpData);
     FillExchangeInfoData (CpuMpData);
     SaveLocalApicTimerSetting (CpuMpData);
   }
@@ -1030,6 +1210,15 @@ WakeUpAP (
       }
     }
     if (ResetVectorRequired) {
+      //
+      // For SEV-ES, set the jump address for initial AP boot
+      //
+      if (CpuMpData->SevEsActive) {
+        SEV_ES_AP_JMP_FAR *JmpFar = (SEV_ES_AP_JMP_FAR *)0xFFFFFFD0;
+
+        JmpFar->ApStart.Rip = 0;
+        JmpFar->ApStart.Segment = (UINT16) (ExchangeInfo->BufferStart >> 4);
+      }
       //
       // Wakeup all APs
       //
@@ -1555,7 +1744,7 @@ MpInitLibInitialize (
   ASSERT (MaxLogicalProcessorNumber != 0);
 
   AsmGetAddressMap (&AddressMap);
-  ApResetVectorSize = AddressMap.RendezvousFunnelSize + sizeof (MP_CPU_EXCHANGE_INFO);
+  ApResetVectorSize = GetApResetVectorSize (&AddressMap);
   ApStackSize = PcdGet32(PcdCpuApStackSize);
   ApLoopMode  = GetApLoopMode (&MonitorFilterSize);
 
@@ -1645,6 +1834,8 @@ MpInitLibInitialize (
   }
 
   CpuMpData->SevEsActive      = PcdGet32 (PcdCpuSevEsActive);
+  CpuMpData->SevEsAPBuffer    = (UINTN) -1;
+  CpuMpData->GhcbBase         = PcdGet64 (PcdGhcbBase);
   InitializeSpinLock(&CpuMpData->MpLock);
 
   //

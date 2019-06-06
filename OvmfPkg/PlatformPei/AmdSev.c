@@ -80,6 +80,8 @@ AmdSevEsInitialize (
   ASSERT_RETURN_ERROR (PcdStatus);
   PcdStatus = PcdSet64S (PcdGhcbSize, (UINT64)EFI_PAGES_TO_SIZE (GhcbPageCount));
   ASSERT_RETURN_ERROR (PcdStatus);
+  PcdStatus = PcdSet32S (PcdCpuSevEsActive, 1);
+  ASSERT_RETURN_ERROR (PcdStatus);
 
   DEBUG ((EFI_D_INFO, "SEV-ES is enabled, %u GHCB pages allocated starting at 0x%lx\n", GhcbPageCount, GhcbBase));
 
@@ -98,6 +100,7 @@ AmdSevEsInitialize (
   CopyMem (Gdt, (VOID *) Gdtr.Base, Gdtr.Limit + 1);
   Gdtr.Base = (UINTN) Gdt;
   AsmWriteGdtr (&Gdtr);
+
 }
 
 /**
