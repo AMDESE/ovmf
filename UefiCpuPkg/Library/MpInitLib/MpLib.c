@@ -1698,6 +1698,31 @@ CheckAllAPs (
 }
 
 /**
+  MP Exit ...
+
+  This service ...
+
+  This service must be invoked before ...
+
+  @retval  EFI_SUCCESS           MP initialization succeeds.
+  @retval  Others                MP initialization fails.
+
+**/
+EFI_STATUS
+EFIAPI
+MpLibFinalize (
+  VOID
+  )
+{
+  CPU_MP_DATA              *CpuMpData;
+
+  CpuMpData = GetCpuMpData ();
+  MpFinalize (CpuMpData);
+
+  return EFI_SUCCESS;
+}
+
+/**
   MP Initialize Library initialization.
 
   This service will allocate AP reset vector and wakeup all APs to do APs

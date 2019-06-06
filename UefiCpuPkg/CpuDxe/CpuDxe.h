@@ -239,6 +239,20 @@ CpuSetMemoryAttributes (
   );
 
 /**
+  Set ...
+
+  @param  This                   Protocol instance structure
+
+  @retval EFI_SUCCESS            If ...
+
+**/
+EFI_STATUS
+EFIAPI
+CpuFinalize (
+  IN EFI_CPU_ARCH_PROTOCOL      *This
+  );
+
+/**
   Initialize Global Descriptor Table.
 
 **/

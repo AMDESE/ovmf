@@ -98,6 +98,7 @@ EFI_CPU_ARCH_PROTOCOL  gCpu = {
   CpuRegisterInterruptHandler,
   CpuGetTimerValue,
   CpuSetMemoryAttributes,
+  CpuFinalize,
   1,                          // NumberOfTimers
   4                           // DmaBufferAlignment
 };
@@ -503,6 +504,15 @@ CpuSetMemoryAttributes (
   // Set memory attribute by page table
   //
   return AssignMemoryPageAttributes (NULL, BaseAddress, Length, MemoryAttributes, NULL);
+}
+
+EFI_STATUS
+EFIAPI
+CpuFinalize (
+  IN EFI_CPU_ARCH_PROTOCOL     *This
+  )
+{
+  return MpLibFinalize ();
 }
 
 /**
