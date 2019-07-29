@@ -554,6 +554,7 @@
   # UefiCpuPkg PCDs related to initial AP bringup and general AP management.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber|64
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApInitTimeOutInMicroSeconds|50000
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuSevEsActive|0
 
   # Set memory encryption mask
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0

@@ -280,6 +280,22 @@ GetModeTransitionBuffer (
 }
 
 /**
+  Get ...
+
+  @retval other   Return SEV-ES AP wakeup buffer
+**/
+UINTN
+GetSevEsAPMemory (
+  VOID
+  )
+{
+  //
+  // PEI phase doesn't need to do this pre-allocation. So simply return 0.
+  //
+  return 0;
+}
+
+/**
   Checks APs status and updates APs status if needed.
 
 **/

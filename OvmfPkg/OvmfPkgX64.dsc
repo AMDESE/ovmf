@@ -300,6 +300,7 @@
   DebugAgentLib|SourceLevelDebugPkg/Library/DebugAgent/DxeDebugAgentLib.inf
 !endif
   CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+  MpInitLib|UefiCpuPkg/Library/MpInitLib/DxeMpInitLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
@@ -565,6 +566,7 @@
   # UefiCpuPkg PCDs related to initial AP bringup and general AP management.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber|64
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApInitTimeOutInMicroSeconds|50000
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuSevEsActive|0
 
   # Set memory encryption mask
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0
