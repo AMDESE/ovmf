@@ -323,5 +323,9 @@
   # @ValidRange  0x80000001 | 0 - 1
   gUefiCpuPkgTokenSpaceGuid.PcdCpuProcTraceOutputScheme|0x0|UINT8|0x60000015
 
+  ## Contains the GHCB page allocation information.<BR><BR>
+  gUefiCpuPkgTokenSpaceGuid.PcdGhcbBase|0x0|UINT64|0x60000016
+  gUefiCpuPkgTokenSpaceGuid.PcdGhcbSize|0x0|UINT64|0x60000017
+
 [UserExtensions.TianoCore."ExtraFiles"]
   UefiCpuPkgExtra.uni
