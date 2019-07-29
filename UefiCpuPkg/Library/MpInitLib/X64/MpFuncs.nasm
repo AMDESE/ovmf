@@ -179,8 +179,9 @@ Releaselock:
 
     ; program GHCB
     mov        eax, SIZE_4KB
+    shl        eax, 1
     mov        ecx, ebx
-    mul        ecx                               ; EAX = SIZE_4K * CpuNumber
+    mul        ecx                               ; EAX = SIZE_4K * 2 * CpuNumber
     mov        edi, esi
     add        edi, GhcbBaseLocation
     add        rax, qword [edi]
