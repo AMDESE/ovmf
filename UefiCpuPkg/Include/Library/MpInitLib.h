@@ -344,4 +344,21 @@ MpInitLibWhoAmI (
   OUT UINTN                    *ProcessorNumber
   );
 
+/**
+  MP Exit ...
+
+  This service ...
+
+  This service must be invoked before ...
+
+  @retval  EFI_SUCCESS           MP initialization succeeds.
+  @retval  Others                MP initialization fails.
+
+**/
+EFI_STATUS
+EFIAPI
+MpLibFinalize (
+  VOID
+  );
+
 #endif
