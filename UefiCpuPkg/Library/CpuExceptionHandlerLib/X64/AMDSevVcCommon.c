@@ -530,6 +530,33 @@ UnsupportedExit (
 
 STATIC
 UINTN
+MonitorExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINTN   Status;
+
+  DecodeModRm (Regs, InstructionData);
+
+  Ghcb->SaveArea.Rax = Regs->Rax;	/* Identity mapped, so VA = PA */
+  GhcbSetRegValid (Ghcb, GhcbRax);
+  Ghcb->SaveArea.Rcx = Regs->Rcx;
+  GhcbSetRegValid (Ghcb, GhcbRcx);
+  Ghcb->SaveArea.Rdx = Regs->Rdx;
+  GhcbSetRegValid (Ghcb, GhcbRdx);
+
+  Status = VmgExit (Ghcb, SvmExitMonitor, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  return 0;
+}
+
+STATIC
+UINTN
 WbinvdExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -1041,6 +1068,10 @@ DoVcCommon (
 
   case SvmExitWbinvd:
     NaeExit = WbinvdExit;
+    break;
+
+  case SvmExitMonitor:
+    NaeExit = MonitorExit;
     break;
 
   case SvmExitNpf:
