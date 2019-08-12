@@ -446,7 +446,7 @@ CompatMode:
 
 BITS 16
     ;
-    ; At entry to this label
+    ; At entry to this label (used also by AsmRelocateApLoop):
     ;   - RDX will have its reset value
     ;   - On the top of the stack
     ;     - Alignment data (two bytes) to be discarded
@@ -475,32 +475,93 @@ PM16Mode:
 SwitchToRealProcEnd:
 
 ;-------------------------------------------------------------------------------------
-;  AsmRelocateApLoop (MwaitSupport, ApTargetCState, PmCodeSegment, TopOfApStack, CountTofinish);
+;  AsmRelocateApLoop (MwaitSupport, ApTargetCState, PmCodeSegment, Pm16CodeSegment, TopOfApStack, CountTofinish, SevEsAPJumpTable, WakeupBuffer);
 ;-------------------------------------------------------------------------------------
 global ASM_PFX(AsmRelocateApLoop)
 ASM_PFX(AsmRelocateApLoop):
 AsmRelocateApLoopStart:
 BITS 64
-    cli                          ; Disable interrupt before switching to 32-bit mode
-    mov        rax, [rsp + 40]   ; CountTofinish
-    lock dec   dword [rax]       ; (*CountTofinish)--
-    mov        rsp, r9
+    cmp        qword [rsp + 56], 0
+    je         NoSevEs
+
+    ;
+    ; Perform some SEV-ES related setup before leaving 64-bit mode
+    ;
     push       rcx
     push       rdx
 
-    lea        rsi, [PmEntry]    ; rsi <- The start address of transition code
+    ;
+    ; Get the RDX reset value using CPUID
+    ;
+    mov        rax, 1
+    cpuid
+    mov        rsi, rax          ; Save off the reset value for RDX
+
+    ;
+    ; Prepare the GHCB for the AP_HLT_LOOP VMGEXIT call
+    ;   - No NAE events can be generated once this is set otherwise
+    ;     the AP_HLT_LOOP SW_EXITCODE will be overwritten.
+    ;
+    mov        rcx, 0xc0010130
+    rdmsr                        ; Retrieve current GHCB address
+    shl        rdx, 32
+    or         rdx, rax
+
+    mov        rdi, rdx
+    xor        rax, rax
+    mov        rcx, 0x800
+    shr        rcx, 3
+    rep stosq                    ; Clear the GHCB
+
+    mov        rax, 0x80000004   ; VMGEXIT AP_HLT_LOOP
+    mov        [rdx + 0x390], rax
+
+    pop        rdx
+    pop        rcx
+
+NoSevEs:
+    cli                          ; Disable interrupt before switching to 32-bit mode
+    mov        rax, [rsp + 48]   ; CountTofinish
+    lock dec   dword [rax]       ; (*CountTofinish)--
+
+    mov        rax, [rsp + 56]   ; SevEsAPJumpTable
+    mov        rbx, [rsp + 64]   ; WakeupBuffer
+    mov        rsp, [rsp + 40]   ; TopOfApStack
+
+    push       rax               ; Save SevEsAPJumpTable
+    push       rbx               ; Save WakeupBuffer
+    push       r9                ; Save Pm16CodeSegment
+    push       rcx               ; Save MwaitSupport
+    push       rdx               ; Save ApTargetCState
+
+    lea        rax, [PmEntry]    ; rax <- The start address of transition code
 
     push       r8
-    push       rsi
-    DB         0x48
-    retf
+    push       rax
+
+    ;
+    ; Clear R8 - R15, for reset, before going into 32-bit mode
+    ;
+    xor        r8, r8
+    xor        r9, r9
+    xor        r10, r10
+    xor        r11, r11
+    xor        r12, r12
+    xor        r13, r13
+    xor        r14, r14
+    xor        r15, r15
+
+    ;
+    ; Far return into 32-bit mode
+    ;
+o64 retf
+
 BITS 32
 PmEntry:
     mov        eax, cr0
     btr        eax, 31           ; Clear CR0.PG
     mov        cr0, eax          ; Disable paging and caches
 
-    mov        ebx, edx          ; Save EntryPoint to rbx, for rdmsr will overwrite rdx
     mov        ecx, 0xc0000080
     rdmsr
     and        ah, ~ 1           ; Clear LME
@@ -513,6 +574,8 @@ PmEntry:
     add        esp, 4
     pop        ecx,
     add        esp, 4
+
+MwaitCheck:
     cmp        cl, 1              ; Check mwait-monitor support
     jnz        HltLoop
     mov        ebx, edx           ; Save C-State to ebx
@@ -526,10 +589,53 @@ MwaitLoop:
     shl        eax, 4
     mwait
     jmp        MwaitLoop
+
 HltLoop:
+    pop        edx                ; PM16CodeSegment
+    add        esp, 4
+    pop        ebx                ; WakeupBuffer
+    add        esp, 4
+    pop        eax                ; SevEsAPJumpTable
+    add        esp, 4
+    cmp        eax, 0             ; Check for SEV-ES
+    je         DoHlt
+
+    cli
+    ;
+    ; SEV-ES is active, use VMGEXIT (GHCB information already
+    ; set by caller)
+    ;
+    ; VMGEXIT is rep vmmcall
+    ;
+    db         0xf3
+    db         0x0f
+    db         0x01
+    db         0xd9
+
+    ;
+    ; Back from VMGEXIT AP_HLT_LOOP
+    ;   Push the FLAGS/CS/IP values to use
+    ;
+    push       word 0x0002        ; EFLAGS
+    xor        ecx, ecx
+    mov        cx, [eax + 2]      ; CS
+    push       cx
+    mov        cx, [eax]          ; IP
+    push       cx
+    push       word 0x0000        ; For alignment, will be discarded
+
+    push       edx
+    push       ebx
+
+    mov        edx, esi           ; Restore RDX reset value
+
+    retf
+
+DoHlt:
     cli
     hlt
-    jmp        HltLoop
+    jmp        DoHlt
+
 BITS 64
 AsmRelocateApLoopEnd:
 
