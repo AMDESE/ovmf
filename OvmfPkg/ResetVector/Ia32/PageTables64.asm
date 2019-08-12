@@ -37,6 +37,15 @@ BITS    32
 ; If SEV is disabled then EAX will be zero.
 ;
 CheckSevFeature:
+    ;
+    ; Set up exception handlers to check for SEV-ES
+    ;   Load temporary RAM stack based on PCDs
+    ;   Establish exception handlers
+    ;
+    mov       esp, SEV_TOP_OF_STACK
+    mov       eax, ADDR_OF(idtr)
+    lidt      [cs:eax]
+
     ; Check if we have a valid (0x8000_001F) CPUID leaf
     mov       eax, 0x80000000
     cpuid
@@ -73,6 +82,15 @@ NoSev:
     xor       eax, eax
 
 SevExit:
+    ;
+    ; Clear exception handlers and stack
+    ;
+    push      eax
+    mov       eax, ADDR_OF(idtr_clear)
+    lidt      [cs:eax]
+    pop       eax
+    mov       esp, 0
+
     OneTimeCallRet CheckSevFeature
 
 ;
@@ -146,3 +164,158 @@ pageTableEntriesLoop:
     mov     cr3, eax
 
     OneTimeCallRet SetCr3ForPageTables64
+
+SevEsIdtCommon:
+    hlt
+    jmp     SevEsIdtCommon
+    iret
+
+SevEsIdtVmmComm:
+    ;
+    ; If we're here, then we are an SEV-ES guest and this
+    ; was triggered by a CPUID instruction
+    ;
+    pop     ecx                     ; Error code
+    cmp     ecx, 0x72               ; Be sure it was CPUID
+    jne     SevEsIdtCommon
+
+    ;
+    ; Set up local variable room on the stack
+    ;   CPUID function      : + 28
+    ;   CPUID register      : + 24
+    ;   GHCB MSR (EAX)      : + 20
+    ;   GHCB MSR (EDX)      : + 16
+    ;   CPUID result (EDX)  : + 12
+    ;   CPUID result (ECX)  : + 8
+    ;   CPUID result (EBX)  : + 4
+    ;   CPUID result (EAX)  : + 0
+    sub     esp, 32
+
+    ; Save CPUID function and initial register request
+    mov     [esp + 28], eax
+    xor     eax, eax
+    mov     [esp + 24], eax
+
+    ; Save current GHCB MSR value
+    mov     ecx, 0xc0010130
+    rdmsr
+    mov     [esp + 20], eax
+    mov     [esp + 16], edx
+
+NextReg:
+    ;
+    ; Setup GHCB MSR
+    ;   GHCB_MSR[63:32] = CPUID function
+    ;   GHCB_MSR[31:30] = CPUID register
+    ;   GHCB_MSR[11:0]  = CPUID request protocol
+    ;
+    mov     eax, [esp + 24]
+    cmp     eax, 4
+    jge     VmmDone
+
+    shl     eax, 30
+    or      eax, 0x004
+    mov     edx, [esp + 28]
+    mov     ecx, 0xc0010130
+    wrmsr
+
+    ; Issue VMGEXIT (rep; vmmcall)
+    db      0xf3
+    db      0x0f
+    db      0x01
+    db      0xd9
+
+    ;
+    ; Read GHCB MSR
+    ;   GHCB_MSR[63:32] = CPUID register value
+    ;   GHCB_MSR[31:30] = CPUID register
+    ;   GHCB_MSR[11:0]  = CPUID response protocol
+    ;
+    mov     ecx, 0xc0010130
+    rdmsr
+    mov     ecx, eax
+    and     ecx, 0xfff
+    cmp     ecx, 0x005
+    jne     SevEsIdtCommon
+
+    ; Save returned value
+    shr     eax, 30
+    and     eax, 0x3
+    shl     eax, 2
+    mov     ecx, esp
+    add     ecx, eax
+    mov     [ecx], edx
+
+    ; Next register
+    inc     word [esp + 24]
+
+    jmp     NextReg
+
+VmmDone:
+    ;
+    ; At this point we have all CPUID register values. Restore the GHCB MSR,
+    ; set the return register values and return.
+    ;
+    mov     eax, [esp + 20]
+    mov     edx, [esp + 16]
+    mov     ecx, 0xc0010130
+    wrmsr
+
+    mov     eax, [esp + 0]
+    mov     ebx, [esp + 4]
+    mov     ecx, [esp + 8]
+    mov     edx, [esp + 12]
+
+    add     esp, 32
+    add     word [esp], 2           ; Skip over the CPUID instruction
+    iret
+
+ALIGN   2
+
+idtr:
+    dw      IDT_END - IDT_BASE - 1  ; Limit
+    dd      ADDR_OF(IDT_BASE)       ; Base
+
+idtr_clear:
+    dw      0                       ; Limit
+    dd      0                       ; Base
+
+ALIGN   16
+
+;
+; The Interrupt Descriptor Table (IDT)
+;   This will be used to determine if SEV-ES is enabled.  Upon execution
+;   of the CPUID instruction, a VMM Communication Exception will occur.
+;   This will tell us if SEV-ES is enabled.  We can use the current value
+;   of the GHCB MSR to determine the SEV attributes.
+;
+IDT_BASE:
+;
+; Vectors 0 - 28
+;
+%rep 29
+    dw      (ADDR_OF(SevEsIdtCommon) & 0xffff)   ; Offset low bits 15..0
+    dw      0x10                                 ; Selector
+    db      0                                    ; Reserved
+    db      0x8E                                 ; Gate Type (IA32_IDT_GATE_TYPE_INTERRUPT_32)
+    dw      (ADDR_OF(SevEsIdtCommon) >> 16)      ; Offset high bits 31..16
+%endrep
+;
+; Vector 29 (VMM Communication Exception)
+;
+    dw      (ADDR_OF(SevEsIdtVmmComm) & 0xffff)  ; Offset low bits 15..0
+    dw      0x10                                 ; Selector
+    db      0                                    ; Reserved
+    db      0x8E                                 ; Gate Type (IA32_IDT_GATE_TYPE_INTERRUPT_32)
+    dw      (ADDR_OF(SevEsIdtVmmComm) >> 16)     ; Offset high bits 31..16
+;
+; Vectors 30 - 31
+;
+%rep 2
+    dw      (ADDR_OF(SevEsIdtCommon) & 0xffff)   ; Offset low bits 15..0
+    dw      0x10                                 ; Selector
+    db      0                                    ; Reserved
+    db      0x8E                                 ; Gate Type (IA32_IDT_GATE_TYPE_INTERRUPT_32)
+    dw      (ADDR_OF(SevEsIdtCommon) >> 16)      ; Offset high bits 31..16
+%endrep
+IDT_END:
