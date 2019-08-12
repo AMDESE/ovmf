@@ -739,6 +739,11 @@ SecCoreStartupWithStack (
 
   ProcessLibraryConstructorList (NULL, NULL);
 
+  //
+  // Enable caching
+  //
+  AsmEnableCache ();
+
   DEBUG ((EFI_D_INFO,
     "SecCoreStartupWithStack(0x%x, 0x%x)\n",
     (UINT32)(UINTN)BootFv,
