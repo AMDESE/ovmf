@@ -151,6 +151,11 @@ typedef struct {
   UINT8             *RelocateApLoopFuncAddress;
   UINTN             RelocateApLoopFuncSize;
   UINTN             ModeTransitionOffset;
+  UINTN             SwitchToRealSize;
+  UINTN             SwitchToRealOffset;
+  UINTN             SwitchToRealNoNxOffset;
+  UINTN             SwitchToRealPM16ModeOffset;
+  UINTN             SwitchToRealPM16ModeSize;
 } MP_ASSEMBLY_ADDRESS_MAP;
 
 typedef struct _CPU_MP_DATA  CPU_MP_DATA;
@@ -185,6 +190,8 @@ typedef struct {
   UINT16                ModeTransitionSegment;
   UINT32                ModeHighMemory;
   UINT16                ModeHighSegment;
+  UINT32                SevEsActive;
+  UINTN                 GhcbBase;
 } MP_CPU_EXCHANGE_INFO;
 
 #pragma pack()
@@ -232,6 +239,7 @@ struct _CPU_MP_DATA {
   UINT8                          ApLoopMode;
   UINT8                          ApTargetCState;
   UINT16                         PmCodeSegment;
+  UINT16                         Pm16CodeSegment;
   CPU_AP_DATA                    *CpuData;
   volatile MP_CPU_EXCHANGE_INFO  *MpCpuExchangeInfo;
 
@@ -258,7 +266,44 @@ struct _CPU_MP_DATA {
   BOOLEAN                        WakeUpByInitSipiSipi;
 
   UINT32                         SevEsActive;
+  UINTN                          SevEsAPBuffer;
+  UINTN                          SevEsAPResetStackStart;
+  CPU_MP_DATA                    *NewCpuMpData;
+
+  UINT64                         GhcbBase;
 };
+
+#define AP_RESET_STACK_SIZE 64
+
+typedef union {
+  struct {
+    UINT16  Rip;
+    UINT16  Segment;
+  } ApStart;
+  UINT32    Uint32;
+} SEV_ES_AP_JMP_FAR;
+
+/**
+  Assembly code to move an AP from long mode to real mode.
+
+  Move an AP from long mode to real mode in preparation to invoking
+  the reset vector.  This is used for SEV-ES guests where a hypervisor
+  is not allowed to set the CS and RIP to point to the reset vector.
+
+  @param[in]  BufferStart  The reset vector target.
+  @param[in]  Code16       16-bit protected mode code segment value.
+  @param[in]  Code32       32-bit protected mode code segment value.
+  @param[in]  StackStart   The start of a stack to be used for transitioning
+                           from long mode to real mode.
+**/
+typedef
+VOID
+(EFIAPI AP_RESET) (
+  IN UINTN    BufferStart,
+  IN UINT16   Code16,
+  IN UINT16   Code32,
+  IN UINTN    StackStart
+  );
 
 extern EFI_GUID mCpuInitMpLibHobGuid;
 
@@ -363,6 +408,16 @@ GetWakeupBuffer (
 UINTN
 GetModeTransitionBuffer (
   IN UINTN                BufferSize
+  );
+
+/**
+  Get ...
+
+  @retval other   Return SEV-ES AP wakeup buffer
+**/
+UINTN
+GetSevEsAPMemory (
+  VOID
   );
 
 /**
