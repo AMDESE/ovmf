@@ -327,5 +327,8 @@
   gUefiCpuPkgTokenSpaceGuid.PcdGhcbBase|0x0|UINT64|0x60000016
   gUefiCpuPkgTokenSpaceGuid.PcdGhcbSize|0x0|UINT64|0x60000017
 
+  ## Contains the SEV-ES active setting
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuSevEsActive|0x0|UINT32|0x60000019
+
 [UserExtensions.TianoCore."ExtraFiles"]
   UefiCpuPkgExtra.uni
