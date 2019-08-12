@@ -21,6 +21,11 @@ BITS    32
 %define PAGE_2M_MBO            0x080
 %define PAGE_2M_PAT          0x01000
 
+%define PAGE_4K_PDE_ATTR (PAGE_ACCESSED + \
+                          PAGE_DIRTY + \
+                          PAGE_READ_WRITE + \
+                          PAGE_PRESENT)
+
 %define PAGE_2M_PDE_ATTR (PAGE_2M_MBO + \
                           PAGE_ACCESSED + \
                           PAGE_DIRTY + \
@@ -120,7 +125,7 @@ SevNotActive:
     ; more permanent location by DxeIpl.
     ;
 
-    mov     ecx, 6 * 0x1000 / 4
+    mov     ecx, 7 * 0x1000 / 4
     xor     eax, eax
 clearPageTablesMemoryLoop:
     mov     dword[ecx * 4 + PT_ADDR (0) - 4], eax
@@ -156,6 +161,36 @@ pageTableEntriesLoop:
     mov     [ecx * 8 + PT_ADDR (0x2000 - 8)], eax
     mov     [(ecx * 8 + PT_ADDR (0x2000 - 8)) + 4], edx
     loop    pageTableEntriesLoop
+
+    ;
+    ; The GHCB will live at 0x807000 (just after the page tables)
+    ; and needs to be un-encrypted.  This requires the 2MB page
+    ; (index 4 in the first 1GB page) for this range be broken down
+    ; into 512 4KB pages.  All will be marked as encrypted, except
+    ; for the GHCB.
+    ;
+    mov     ecx, 4
+    mov     eax, PT_ADDR (0x6000) + PAGE_PDP_ATTR
+    mov     [ecx * 8 + PT_ADDR (0x2000)], eax
+
+    mov     ecx, 512
+pageTableEntries4kLoop:
+    mov     eax, ecx
+    dec     eax
+    shl     eax, 12
+    add     eax, 0x800000
+    add     eax, PAGE_4K_PDE_ATTR
+    mov     [ecx * 8 + PT_ADDR (0x6000 - 8)], eax
+    mov     [(ecx * 8 + PT_ADDR (0x6000 - 8)) + 4], edx
+    loop    pageTableEntries4kLoop
+
+    ;
+    ; Clear the encryption bit from the GHCB entry (index 7 in the
+    ; new PTE table - (0x807000 - 0x800000) >> 12).
+    ;
+    mov     ecx, 7
+    xor     edx, edx
+    mov     [(ecx * 8 + PT_ADDR (0x6000)) + 4], edx
 
     ;
     ; Set CR3 now that the paging structures are available
