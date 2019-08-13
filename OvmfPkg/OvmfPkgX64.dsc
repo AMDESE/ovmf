@@ -569,6 +569,10 @@
   # Set memory encryption mask
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0
 
+  # Set GHCB base address for SEV-ES
+  gUefiCpuPkgTokenSpaceGuid.PcdGhcbBase|0x0
+  gUefiCpuPkgTokenSpaceGuid.PcdGhcbSize|0x0
+
 !if $(SMM_REQUIRE) == TRUE
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35TsegMbytes|8
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmSyncMode|0x01
