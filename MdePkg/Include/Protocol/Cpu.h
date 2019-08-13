@@ -257,6 +257,11 @@ EFI_STATUS
   IN  UINT64                            Attributes
   );
 
+typedef
+EFI_STATUS
+(EFIAPI *EFI_CPU_FINALIZE)(
+  IN EFI_CPU_ARCH_PROTOCOL              *This
+  );
 
 ///
 /// The EFI_CPU_ARCH_PROTOCOL is used to abstract processor-specific functions from the DXE
@@ -273,6 +278,7 @@ struct _EFI_CPU_ARCH_PROTOCOL {
   EFI_CPU_REGISTER_INTERRUPT_HANDLER  RegisterInterruptHandler;
   EFI_CPU_GET_TIMER_VALUE             GetTimerValue;
   EFI_CPU_SET_MEMORY_ATTRIBUTES       SetMemoryAttributes;
+  EFI_CPU_FINALIZE                    Finalize;
   ///
   /// The number of timers that are available in a processor. The value in this
   /// field is a constant that must not be modified after the CPU Architectural

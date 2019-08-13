@@ -786,6 +786,11 @@ CoreExitBootServices (
   gCpu->DisableInterrupt (gCpu);
 
   //
+  // Finalize CPU
+  //
+  gCpu->Finalize (gCpu);
+
+  //
   // Clear the non-runtime values of the EFI System Table
   //
   gDxeCoreST->BootServices        = NULL;
