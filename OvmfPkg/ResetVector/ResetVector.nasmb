@@ -57,7 +57,7 @@
     %error "This implementation inherently depends on PcdOvmfSecGhcbPageTableSize"
   %endif
 
-  %if (FixedPcdGet32 (PcdOvmfSecGhcbSize) != 0x1000)
+  %if (FixedPcdGet32 (PcdOvmfSecGhcbSize) != 0x2000)
     %error "This implementation inherently depends on PcdOvmfSecGhcbSize"
   %endif
 

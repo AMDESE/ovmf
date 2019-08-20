@@ -79,7 +79,7 @@ gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|gUefiOvmfPkgTokenSp
 0x008000|0x001000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableSize
 
-0x009000|0x001000
+0x009000|0x002000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbSize
 
 0x010000|0x010000
