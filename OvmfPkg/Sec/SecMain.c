@@ -25,6 +25,7 @@
 #include <Library/ExtractGuidedSectionLib.h>
 #include <Library/LocalApicLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
+#include <Library/MemEncryptSevLib.h>
 
 #include <Ppi/TemporaryRamSupport.h>
 
@@ -754,6 +755,15 @@ SecCoreStartupWithStack (
   InitializeCpuExceptionHandlers (NULL);
 
   ProcessLibraryConstructorList (NULL, NULL);
+
+  //
+  // Under SEV-ES, the hypervisor can't modify CR0 and so can't enable
+  // caching in order to speed up the boot. Enable caching early for
+  // an SEV-ES guest.
+  //
+  if (MemEncryptSevEsIsEnabled()) {
+    AsmEnableCache ();
+  }
 
   DEBUG ((EFI_D_INFO,
     "SecCoreStartupWithStack(0x%x, 0x%x)\n",
