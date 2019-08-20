@@ -93,7 +93,8 @@ EFI_CPU_ARCH_PROTOCOL  gCpu = {
   CpuGetTimerValue,
   CpuSetMemoryAttributes,
   1,                          // NumberOfTimers
-  4                           // DmaBufferAlignment
+  4,                          // DmaBufferAlignment
+  CpuFinalize
 };
 
 //
@@ -497,6 +498,24 @@ CpuSetMemoryAttributes (
   // Set memory attribute by page table
   //
   return AssignMemoryPageAttributes (NULL, BaseAddress, Length, MemoryAttributes, NULL);
+}
+
+/**
+  Implementation of CpuFinalize() service of CPU Architecture Protocol.
+
+  This function performs any MpLib library finalization to perform required
+  actions before exiting boot services.
+
+  @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
+
+**/
+VOID
+EFIAPI
+CpuFinalize (
+  IN EFI_CPU_ARCH_PROTOCOL     *This
+  )
+{
+  MpLibFinalize ();
 }
 
 /**
