@@ -575,6 +575,36 @@ WbinvdExit (
 
 STATIC
 UINTN
+RdtscpExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINTN  Status;
+
+  DecodeModRm (Regs, InstructionData);
+
+  Status = VmgExit (Ghcb, SvmExitRdtscp, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+      !GhcbIsRegValid (Ghcb, GhcbRcx) ||
+      !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+    VmgExit (Ghcb, SvmExitUnsupported, SvmExitRdtscp, 0);
+    ASSERT (0);
+  }
+  Regs->Rax = Ghcb->SaveArea.Rax;
+  Regs->Rcx = Ghcb->SaveArea.Rcx;
+  Regs->Rdx = Ghcb->SaveArea.Rdx;
+
+  return 0;
+}
+
+STATIC
+UINTN
 VmmCallExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -1011,6 +1041,10 @@ DoVcCommon (
 
   case SvmExitVmmCall:
     NaeExit = VmmCallExit;
+    break;
+
+  case SvmExitRdtscp:
+    NaeExit = RdtscpExit;
     break;
 
   case SvmExitWbinvd:
