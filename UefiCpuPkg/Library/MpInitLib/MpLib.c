@@ -1657,6 +1657,7 @@ MpInitLibInitialize (
     CpuMpData->MicrocodePatchAddress    = OldCpuMpData->MicrocodePatchAddress;
   }
   InitializeSpinLock(&CpuMpData->MpLock);
+  CpuMpData->SevEsActive      = PcdGetBool (PcdSevEsActive);
 
   //
   // Make sure no memory usage outside of the allocated buffer.
