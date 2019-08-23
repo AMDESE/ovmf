@@ -2002,6 +2002,21 @@
   # @Prompt Capsule On Disk relocation device path.
   gEfiMdeModulePkgTokenSpaceGuid.PcdCodRelocationDevPath|{0xFF}|VOID*|0x0000002f
 
+  ## Indicates whether SEV-ES is active
+  #   TRUE  - SEV-ES is active
+  #   FALSE - SEV-ES is not active
+  # @Prompt SEV-ES Status
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsActive|FALSE|BOOLEAN|0x00011060
+
+  ## The base address of the GHCB pool allocation.
+  # @Prompt GHCB Pool Base Address
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase|0|UINT64|0x00011061
+
+  ## The total size of the GHCB allocation.
+  #  The amount of memory allocated for GHCBs is dependent on the number of APs.
+  # @Prompt GHCB Pool Size
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize|0|UINT64|0x00011062
+
 [PcdsPatchableInModule]
   ## Specify memory size with page number for PEI code when
   #  Loading Module at Fixed Address feature is enabled.
