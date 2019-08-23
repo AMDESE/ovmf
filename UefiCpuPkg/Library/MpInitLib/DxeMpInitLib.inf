@@ -51,6 +51,7 @@
   UefiBootServicesTableLib
   DebugAgentLib
   SynchronizationLib
+  VmgExitLib
 
 [Protocols]
   gEfiTimerArchProtocolGuid                     ## SOMETIMES_CONSUMES
@@ -69,4 +70,5 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApTargetCstate                   ## SOMETIMES_CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard                  ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsActive                    ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase                       ## CONSUMES
 
