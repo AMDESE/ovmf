@@ -105,6 +105,8 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApInitTimeOutInMicroSeconds
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApStackSize
   gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsActive
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize
 
 [FixedPcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress

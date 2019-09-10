@@ -571,6 +571,8 @@
 
   # Set SEV-ES defaults
   gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsActive|0
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase|0
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize|0
 
 !if $(SMM_REQUIRE) == TRUE
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35TsegMbytes|8
