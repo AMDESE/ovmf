@@ -558,6 +558,9 @@
   # Set memory encryption mask
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask|0x0
 
+  # Set SEV-ES defaults
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsActive|0
+
 !if $(SMM_REQUIRE) == TRUE
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35TsegMbytes|8
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmSyncMode|0x01
