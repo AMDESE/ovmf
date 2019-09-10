@@ -7893,6 +7893,22 @@ AsmVmgExit (
   VOID
   );
 
+/**
+  Executes a XGETBV instruction
+
+  Executes a XGETBV instruction. This function is only available on IA-32 and
+  x64.
+
+  @param[in] Index        Extended control register index
+
+  @retval                 The current value of the extended control register
+**/
+UINT64
+EFIAPI
+AsmXGetBv (
+  IN UINT32  Index
+  );
+
 
 /**
   Patch the immediate operand of an IA32 or X64 instruction such that the byte,
