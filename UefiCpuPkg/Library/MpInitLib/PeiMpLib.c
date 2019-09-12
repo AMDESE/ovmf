@@ -604,4 +604,20 @@ MpInitLibEnableDisableAP (
   return EnableDisableApWorker (ProcessorNumber, EnableAP, HealthFlag);
 }
 
+/**
+  MP finalization
+
+  @param[in] CpuMpData  The pointer to CPU MP Data structure.
+**/
+EFI_STATUS
+MpFinalize (
+  IN CPU_MP_DATA   *CpuMpData
+  )
+{
+  //
+  // PEI phase shouldn't do such a transition. So simply return EFI_SUCCESS.
+  //
+  return EFI_SUCCESS;
+}
+
 
