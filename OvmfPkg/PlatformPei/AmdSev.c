@@ -49,9 +49,11 @@ AmdSevEsInitialize (
 
   //
   // Allocate GHCB pages.
+  //   Since the pages must survive across the UEFI to OS transition
+  //   make them reserved.
   //
   GhcbPageCount = mMaxCpuCount * 2;
-  GhcbBase = AllocatePages (GhcbPageCount);
+  GhcbBase = AllocateReservedPages (GhcbPageCount);
   ASSERT (GhcbBase);
 
   GhcbBasePa = (PHYSICAL_ADDRESS)(UINTN) GhcbBase;
