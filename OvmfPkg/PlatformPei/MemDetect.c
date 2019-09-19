@@ -32,6 +32,7 @@ Module Name:
 #include <Library/ResourcePublicationLib.h>
 #include <Library/MtrrLib.h>
 #include <Library/QemuFwCfgLib.h>
+#include <Library/MemEncryptSevLib.h>
 
 #include "Platform.h"
 #include "Cmos.h"
@@ -805,6 +806,28 @@ InitializeRamRegions (
       (UINT64)(UINTN) PcdGet32 (PcdOvmfSecPageTablesSize),
       EfiACPIMemoryNVS
       );
+
+    if (MemEncryptSevEsIsEnabled ()) {
+      //
+      // If SEV-ES is active, reserve the GHCB-related memory area. This
+      // includes the extra page table used to break down the 2MB page
+      // mapping into 4KB page entries where the GHCB resides and the
+      // GHCB area itself.
+      //
+      // Since this memory range will be used by the Reset Vector on S3
+      // resume, it must be reserved as ACPI NVS.
+      //
+      BuildMemoryAllocationHob (
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSecGhcbPageTableBase),
+        (UINT64)(UINTN) PcdGet32 (PcdOvmfSecGhcbPageTableSize),
+        EfiACPIMemoryNVS
+        );
+      BuildMemoryAllocationHob (
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSecGhcbBase),
+        (UINT64)(UINTN) PcdGet32 (PcdOvmfSecGhcbSize),
+        EfiACPIMemoryNVS
+        );
+    }
 #endif
   }
 
