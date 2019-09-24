@@ -21,6 +21,27 @@
 
 /**
 
+  Initialize SEV-ES support if running as an SEV-ES guest.
+
+  **/
+STATIC
+VOID
+AmdSevEsInitialize (
+  VOID
+  )
+{
+  RETURN_STATUS     PcdStatus;
+
+  if (!MemEncryptSevEsIsEnabled ()) {
+    return;
+  }
+
+  PcdStatus = PcdSetBoolS (PcdSevEsIsEnabled, TRUE);
+  ASSERT_RETURN_ERROR (PcdStatus);
+}
+
+/**
+
   Function checks if SEV support is available, if present then it sets
   the dynamic PcdPteMemoryEncryptionAddressOrMask with memory encryption mask.
 
@@ -89,4 +110,9 @@ AmdSevInitialize (
       EfiBootServicesData                // MemoryType
       );
   }
+
+  //
+  // Check and perform SEV-ES initialization if required.
+  //
+  AmdSevEsInitialize ();
 }

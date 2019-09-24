@@ -95,6 +95,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdPropertiesTableEnable
   gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiS3Enable
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsIsEnabled
   gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy
   gUefiCpuPkgTokenSpaceGuid.PcdCpuLocalApicBaseAddress
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber
