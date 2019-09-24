@@ -656,5 +656,16 @@ EnableDebugAgent (
   VOID
   );
 
+/**
+  Perform MpLib finalization before transferring control out of UEFI
+
+  @param[in] CpuMpData  The pointer to CPU MP Data structure.
+
+**/
+EFI_STATUS
+MpFinalize (
+  IN CPU_MP_DATA   *CpuMpData
+  );
+
 #endif
 

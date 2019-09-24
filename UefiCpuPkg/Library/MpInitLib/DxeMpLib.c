@@ -884,3 +884,21 @@ MpInitLibEnableDisableAP (
 
   return Status;
 }
+
+/**
+  MP finalization
+
+  @param[in] CpuMpData  The pointer to CPU MP Data structure.
+**/
+EFI_STATUS
+MpFinalize (
+  IN CPU_MP_DATA   *CpuMpData
+  )
+{
+  //
+  // DXE phase will do this transition, but just return EFI_SUCCESS for now.
+  //
+  return EFI_SUCCESS;
+}
+
+

@@ -1750,6 +1750,29 @@ CheckAllAPs (
 }
 
 /**
+  MP finalization
+
+  This service allows users of MpLib to make any finalization changes
+  before transferring control out of UEFI.
+
+  This service must be invoked before exiting boot services.
+
+  @retval  EFI_SUCCESS           MP finalization succeeds.
+
+**/
+EFI_STATUS
+EFIAPI
+MpLibFinalize (
+  VOID
+  )
+{
+  CPU_MP_DATA              *CpuMpData;
+
+  CpuMpData = GetCpuMpData ();
+  return MpFinalize (CpuMpData);
+}
+
+/**
   MP Initialize Library initialization.
 
   This service will allocate AP reset vector and wakeup all APs to do APs
