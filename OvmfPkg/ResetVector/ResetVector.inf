@@ -26,6 +26,7 @@
 [Packages]
   OvmfPkg/OvmfPkg.dec
   MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
   UefiCpuPkg/UefiCpuPkg.dec
 
 [BuildOptions]
@@ -33,7 +34,11 @@
    *_*_X64_NASMB_FLAGS = -I$(WORKSPACE)/UefiCpuPkg/ResetVector/Vtf0/
 
 [Pcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableSize
