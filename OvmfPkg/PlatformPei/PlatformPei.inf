@@ -100,6 +100,8 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsIsEnabled
   gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbBase
   gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbSize
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize
   gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy
   gUefiCpuPkgTokenSpaceGuid.PcdCpuLocalApicBaseAddress
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber

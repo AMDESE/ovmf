@@ -9,12 +9,15 @@
 //
 // The package level header files this module uses
 //
+#include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/MemEncryptSevLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <PiPei.h>
 #include <Register/Amd/Cpuid.h>
+#include <Register/Amd/Msr.h>
 #include <Register/Cpuid.h>
 
 #include "Platform.h"
@@ -30,7 +33,10 @@ AmdSevEsInitialize (
   VOID
   )
 {
-  RETURN_STATUS     PcdStatus;
+  VOID              *GhcbBase;
+  PHYSICAL_ADDRESS  GhcbBasePa;
+  UINTN             GhcbPageCount;
+  RETURN_STATUS     PcdStatus, DecryptStatus;
 
   if (!MemEncryptSevEsIsEnabled ()) {
     return;
@@ -38,6 +44,36 @@ AmdSevEsInitialize (
 
   PcdStatus = PcdSetBoolS (PcdSevEsIsEnabled, TRUE);
   ASSERT_RETURN_ERROR (PcdStatus);
+
+  //
+  // Allocate GHCB and per-CPU variable pages.
+  //
+  GhcbPageCount = mMaxCpuCount * 2;
+  GhcbBase = AllocatePages (GhcbPageCount);
+  ASSERT (GhcbBase != NULL);
+
+  GhcbBasePa = (PHYSICAL_ADDRESS)(UINTN) GhcbBase;
+
+  DecryptStatus = MemEncryptSevClearPageEncMask (
+    0,
+    GhcbBasePa,
+    GhcbPageCount,
+    TRUE
+    );
+  ASSERT_RETURN_ERROR (DecryptStatus);
+
+  ZeroMem (GhcbBase, EFI_PAGES_TO_SIZE (GhcbPageCount));
+
+  PcdStatus = PcdSet64S (PcdGhcbBase, GhcbBasePa);
+  ASSERT_RETURN_ERROR (PcdStatus);
+  PcdStatus = PcdSet64S (PcdGhcbSize, EFI_PAGES_TO_SIZE (GhcbPageCount));
+  ASSERT_RETURN_ERROR (PcdStatus);
+
+  DEBUG ((DEBUG_INFO,
+    "SEV-ES is enabled, %lu GHCB pages allocated starting at 0x%p\n",
+    (UINT64)GhcbPageCount, GhcbBase));
+
+  AsmWriteMsr64 (MSR_SEV_ES_GHCB, GhcbBasePa);
 }
 
 /**
