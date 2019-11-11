@@ -258,6 +258,22 @@ EFI_STATUS
   );
 
 
+/**
+  This function is used to perform any CPU finalization operations needed
+  before exiting boot services.
+
+  @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
+
+  @return None
+
+**/
+typedef
+VOID
+(EFIAPI *EFI_CPU_FINALIZE)(
+  IN EFI_CPU_ARCH_PROTOCOL              *This
+  );
+
+
 ///
 /// The EFI_CPU_ARCH_PROTOCOL is used to abstract processor-specific functions from the DXE
 /// Foundation. This includes flushing caches, enabling and disabling interrupts, hooking interrupt
@@ -287,6 +303,8 @@ struct _EFI_CPU_ARCH_PROTOCOL {
   /// a read-only field.
   ///
   UINT32                              DmaBufferAlignment;
+
+  EFI_CPU_FINALIZE                    Finalize;
 };
 
 extern EFI_GUID gEfiCpuArchProtocolGuid;
