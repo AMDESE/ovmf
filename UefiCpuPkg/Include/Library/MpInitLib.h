@@ -378,4 +378,18 @@ MpInitLibStartupAllCPUs (
   IN  VOID                      *ProcedureArgument      OPTIONAL
   );
 
+/**
+  This service allows users of MpLib to make any finalization changes
+  before transferring control out of UEFI
+
+  @retval  EFI_SUCCESS           MP initialization succeeds.
+  @retval  Others                MP initialization fails.
+
+**/
+EFI_STATUS
+EFIAPI
+MpLibFinalize (
+  VOID
+  );
+
 #endif
