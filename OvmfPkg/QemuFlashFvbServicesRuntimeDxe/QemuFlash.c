@@ -9,7 +9,9 @@
 
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
+#include <Library/MemEncryptSevLib.h>
 #include <Library/PcdLib.h>
+#include <Library/VmgExitLib.h>
 
 #include "QemuFlash.h"
 
@@ -80,6 +82,20 @@ QemuFlashDetected (
 
   DEBUG ((EFI_D_INFO, "QEMU Flash: Attempting flash detection at %p\n", Ptr));
 
+  if (MemEncryptSevEsIsEnabled()) {
+    //
+    // When SEV-ES is enabled, the check below can result in an infinite
+    // loop with respect to a nested page fault. When the FD behaves as
+    // a ROM, the nested page table entry is read-only. The check below
+    // will cause a nested page fault that cannot be emulated, causing
+    // the instruction to retried over and over. For SEV-ES, assume that
+    // the FD does not behave as FLASH.
+    //
+    DEBUG ((DEBUG_INFO,
+      "QEMU Flash: SEV-ES enabled, assuming FD behaves as FLASH\n"));
+    return TRUE;
+  }
+
   OriginalUint8 = *Ptr;
   *Ptr = CLEAR_STATUS_CMD;
   ProbeUint8 = *Ptr;
@@ -147,6 +163,21 @@ QemuFlashRead (
 }
 
 
+STATIC
+VOID
+QemuFlashPtrWrite (
+  IN        volatile UINT8                      *Ptr,
+  IN        UINT8                               Value
+  )
+{
+  if (MemEncryptSevEsIsEnabled()) {
+    VmgMmioWrite ((UINT8 *) Ptr, &Value, 1);
+  } else {
+    *Ptr = Value;
+  }
+}
+
+
 /**
   Write to QEMU Flash
 
@@ -181,8 +212,9 @@ QemuFlashWrite (
   //
   Ptr = QemuFlashPtr (Lba, Offset);
   for (Loop = 0; Loop < *NumBytes; Loop++) {
-    *Ptr = WRITE_BYTE_CMD;
-    *Ptr = Buffer[Loop];
+    QemuFlashPtrWrite (Ptr, WRITE_BYTE_CMD);
+    QemuFlashPtrWrite (Ptr, Buffer[Loop]);
+
     Ptr++;
   }
 
@@ -190,7 +222,7 @@ QemuFlashWrite (
   // Restore flash to read mode
   //
   if (*NumBytes > 0) {
-    *(Ptr - 1) = READ_ARRAY_CMD;
+    QemuFlashPtrWrite (Ptr - 1, READ_ARRAY_CMD);
   }
 
   return EFI_SUCCESS;
