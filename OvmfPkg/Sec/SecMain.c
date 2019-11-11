@@ -25,6 +25,9 @@
 #include <Library/ExtractGuidedSectionLib.h>
 #include <Library/LocalApicLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
+#include <Register/Cpuid.h>
+#include <Register/Amd/Cpuid.h>
+#include <Register/Amd/Fam17Msr.h>
 
 #include <Ppi/TemporaryRamSupport.h>
 
@@ -713,6 +716,39 @@ FindAndReportEntryPoints (
   return;
 }
 
+STATIC
+BOOLEAN
+SevEsIsEnabled (
+  VOID
+  )
+{
+  UINT32                            RegEax;
+  CPUID_MEMORY_ENCRYPTION_INFO_EAX  Eax;
+  MSR_SEV_STATUS_REGISTER           Msr;
+
+  //
+  // Check if the memory encryption leaf exist
+  //
+  AsmCpuid (CPUID_EXTENDED_FUNCTION, &RegEax, NULL, NULL, NULL);
+  if (RegEax >= CPUID_MEMORY_ENCRYPTION_INFO) {
+    //
+    // CPUID Fn8000_001F[EAX] Bit 1 (Sev supported)
+    //
+    AsmCpuid (CPUID_MEMORY_ENCRYPTION_INFO, &Eax.Uint32, NULL, NULL, NULL);
+    if (Eax.Bits.SevBit && Eax.Bits.SevEsBit) {
+      //
+      // Check MSR_0xC0010131 Bit 1 (Sev-Es Enabled)
+      //
+      Msr.Uint32 = AsmReadMsr32 (MSR_SEV_STATUS);
+      if (Msr.Bits.SevEsBit) {
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
 VOID
 EFIAPI
 SecCoreStartupWithStack (
@@ -754,6 +790,15 @@ SecCoreStartupWithStack (
   InitializeCpuExceptionHandlers (NULL);
 
   ProcessLibraryConstructorList (NULL, NULL);
+
+  //
+  // Under SEV-ES, the hypervisor can't modify CR0 and so can't enable
+  // caching in order to speed up the boot. Enable caching early for
+  // an SEV-ES guest.
+  //
+  if (SevEsIsEnabled()) {
+    AsmEnableCache ();
+  }
 
   DEBUG ((EFI_D_INFO,
     "SecCoreStartupWithStack(0x%x, 0x%x)\n",
