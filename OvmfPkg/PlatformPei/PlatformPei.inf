@@ -72,6 +72,8 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfLockBoxStorageSize
   gUefiOvmfPkgTokenSpaceGuid.PcdGuidedExtractHandlerTableSize
@@ -96,6 +98,8 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdAcpiS3Enable
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask
   gEfiMdeModulePkgTokenSpaceGuid.PcdSevEsIsEnabled
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbSize
   gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy
   gUefiCpuPkgTokenSpaceGuid.PcdCpuLocalApicBaseAddress
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber
