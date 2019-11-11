@@ -36,6 +36,8 @@
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbBase
   gEfiMdeModulePkgTokenSpaceGuid.PcdSecGhcbSize
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsResetRipBase
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsResetRipSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamBase
