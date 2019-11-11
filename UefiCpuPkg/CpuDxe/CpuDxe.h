@@ -233,6 +233,18 @@ CpuSetMemoryAttributes (
   );
 
 /**
+  Perform any MpLib final actions before transitioning out of UEFI.
+
+  @param  This                   Protocol instance structure
+
+**/
+VOID
+EFIAPI
+CpuFinalize (
+  IN EFI_CPU_ARCH_PROTOCOL      *This
+  );
+
+/**
   Initialize Global Descriptor Table.
 
 **/
