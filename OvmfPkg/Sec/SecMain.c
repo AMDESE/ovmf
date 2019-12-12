@@ -24,6 +24,7 @@
 #include <Library/PeCoffExtraActionLib.h>
 #include <Library/ExtractGuidedSectionLib.h>
 #include <Library/LocalApicLib.h>
+#include <Library/CpuExceptionHandlerLib.h>
 
 #include <Ppi/TemporaryRamSupport.h>
 
@@ -33,6 +34,10 @@ typedef struct _SEC_IDT_TABLE {
   EFI_PEI_SERVICES          *PeiService;
   IA32_IDT_GATE_DESCRIPTOR  IdtTable[SEC_IDT_ENTRY_COUNT];
 } SEC_IDT_TABLE;
+
+typedef struct _SEC_SEV_ES_WORK_AREA {
+  UINT8  SevEsEnabled;
+} SEC_SEV_ES_WORK_AREA;
 
 VOID
 EFIAPI
@@ -712,6 +717,19 @@ FindAndReportEntryPoints (
   return;
 }
 
+STATIC
+BOOLEAN
+SevEsIsEnabled (
+  VOID
+  )
+{
+  SEC_SEV_ES_WORK_AREA  *SevEsWorkArea;
+
+  SevEsWorkArea = (SEC_SEV_ES_WORK_AREA *) FixedPcdGet32 (PcdSevEsWorkAreaBase);
+
+  return ((SevEsWorkArea != NULL) && (SevEsWorkArea->SevEsEnabled != 0));
+}
+
 VOID
 EFIAPI
 SecCoreStartupWithStack (
@@ -737,7 +755,52 @@ SecCoreStartupWithStack (
     Table[Index] = 0;
   }
 
+  //
+  // Initialize IDT - Since this is before library constructors are called,
+  // we use a loop rather than CopyMem.
+  //
+  IdtTableInStack.PeiService = NULL;
+  for (Index = 0; Index < SEC_IDT_ENTRY_COUNT; Index ++) {
+    UINT8  *Src, *Dst;
+    UINTN  Byte;
+
+    Src = (UINT8 *) &mIdtEntryTemplate;
+    Dst = (UINT8 *) &IdtTableInStack.IdtTable[Index];
+    for (Byte = 0; Byte < sizeof (mIdtEntryTemplate); Byte++) {
+      Dst[Byte] = Src[Byte];
+    }
+  }
+
+  IdtDescriptor.Base  = (UINTN)&IdtTableInStack.IdtTable;
+  IdtDescriptor.Limit = (UINT16)(sizeof (IdtTableInStack.IdtTable) - 1);
+
+  if (SevEsIsEnabled()) {
+    //
+    // For SEV-ES guests, the exception handler is needed before calling
+    // ProcessLibraryConstructorList() because some of the library constructors
+    // perform some functions that result in #VC exceptions being generated.
+    //
+    // Due to this code executing before library constructors, *all* library
+    // API calls are theoretically interface contract violations. However,
+    // because this is SEC (executing in flash), those constructors cannot
+    // write variables with static storage duration anyway. Furthermore, only
+    // a small, restricted set of APIs, such as AsmWriteIdtr() and
+    // InitializeCpuExceptionHandlers(), are called, where we require that the
+    // underlying library not require constructors to have been invoked and
+    // that the library instance not trigger any #VC exceptions.
+    //
+    AsmWriteIdtr (&IdtDescriptor);
+    InitializeCpuExceptionHandlers (NULL);
+  }
+
   ProcessLibraryConstructorList (NULL, NULL);
+
+  if (!SevEsIsEnabled()) {
+    //
+    // For non SEV-ES guests, just load the IDTR.
+    //
+    AsmWriteIdtr (&IdtDescriptor);
+  }
 
   DEBUG ((EFI_D_INFO,
     "SecCoreStartupWithStack(0x%x, 0x%x)\n",
@@ -750,19 +813,6 @@ SecCoreStartupWithStack (
   // to be compliant with UEFI spec.
   //
   InitializeFloatingPointUnits ();
-
-  //
-  // Initialize IDT
-  //
-  IdtTableInStack.PeiService = NULL;
-  for (Index = 0; Index < SEC_IDT_ENTRY_COUNT; Index ++) {
-    CopyMem (&IdtTableInStack.IdtTable[Index], &mIdtEntryTemplate, sizeof (mIdtEntryTemplate));
-  }
-
-  IdtDescriptor.Base  = (UINTN)&IdtTableInStack.IdtTable;
-  IdtDescriptor.Limit = (UINT16)(sizeof (IdtTableInStack.IdtTable) - 1);
-
-  AsmWriteIdtr (&IdtDescriptor);
 
 #if defined (MDE_CPU_X64)
   //
