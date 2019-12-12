@@ -100,6 +100,7 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApInitTimeOutInMicroSeconds
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApStackSize
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled
 
 [FixedPcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress
