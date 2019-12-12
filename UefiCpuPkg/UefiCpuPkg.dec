@@ -161,6 +161,14 @@
   # @Prompt Specify the count of pre allocated SMM MP tokens per chunk.
   gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmMpTokenCountPerChunk|64|UINT32|0x30002002
 
+  ## The base address of the SEC GHCB page used by SEV-ES.
+  # @Prompt SEC GHCB Base Address
+  gUefiCpuPkgTokenSpaceGuid.PcdSecGhcbBase|0|UINT32|0x30002003
+
+  ## The total size of the SEC GHCB page used by SEV-ES.
+  # @Prompt SEC GHCB Size
+  gUefiCpuPkgTokenSpaceGuid.PcdSecGhcbSize|0|UINT32|0x30002004
+
 [PcdsFixedAtBuild, PcdsPatchableInModule]
   ## This value is the CPU Local APIC base address, which aligns the address on a 4-KByte boundary.
   # @Prompt Configure base address of CPU Local APIC
@@ -366,6 +374,12 @@
   # @Prompt The processor trace output scheme used when processor trace is enabled.
   # @ValidRange  0x80000001 | 0 - 1
   gUefiCpuPkgTokenSpaceGuid.PcdCpuProcTraceOutputScheme|0x0|UINT8|0x60000015
+
+  ## This dynamic PCD indicates whether SEV-ES is enabled
+  #   TRUE  - SEV-ES is enabled
+  #   FALSE - SEV-ES is not enabled
+  # @Prompt SEV-ES Status
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled|FALSE|BOOLEAN|0x60000016
 
 [UserExtensions.TianoCore."ExtraFiles"]
   UefiCpuPkgExtra.uni
