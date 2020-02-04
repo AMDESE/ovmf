@@ -858,6 +858,24 @@ IoioExit (
 
 STATIC
 UINT64
+InvdExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  Status;
+
+  Status = VmgExit (Ghcb, SvmExitInvd, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  return 0;
+}
+
+STATIC
+UINT64
 CpuidExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -973,6 +991,10 @@ DoVcCommon (
 
   case SvmExitCpuid:
     NaeExit = CpuidExit;
+    break;
+
+  case SvmExitInvd:
+    NaeExit = InvdExit;
     break;
 
   case SvmExitIoioProt:
