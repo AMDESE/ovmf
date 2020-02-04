@@ -11,6 +11,8 @@
 #include <Library/VmgExitLib.h>
 #include "AMDSevVcCommon.h"
 
+#define CR4_OSXSAVE (1 << 18)
+
 typedef enum {
   LongMode64Bit        = 0,
   LongModeCompat32Bit,
@@ -494,6 +496,44 @@ IoioExit (
   return 0;
 }
 
+STATIC
+UINT64
+CpuidExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  Status;
+
+  Ghcb->SaveArea.Rax = Regs->Rax;
+  GhcbSetRegValid (Ghcb, GhcbRax);
+  Ghcb->SaveArea.Rcx = Regs->Rcx;
+  GhcbSetRegValid (Ghcb, GhcbRcx);
+  if (Regs->Rax == 0x0000000d) {
+    Ghcb->SaveArea.XCr0 = (AsmReadCr4 () & CR4_OSXSAVE) ? AsmXGetBv (0) : 1;
+    GhcbSetRegValid (Ghcb, GhcbXCr0);
+  }
+
+  Status = VmgExit (Ghcb, SvmExitCpuid, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+      !GhcbIsRegValid (Ghcb, GhcbRbx) ||
+      !GhcbIsRegValid (Ghcb, GhcbRcx) ||
+      !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+    return UnsupportedExit (Ghcb, Regs, InstructionData);
+  }
+  Regs->Rax = Ghcb->SaveArea.Rax;
+  Regs->Rbx = Ghcb->SaveArea.Rbx;
+  Regs->Rcx = Ghcb->SaveArea.Rcx;
+  Regs->Rdx = Ghcb->SaveArea.Rdx;
+
+  return 0;
+}
+
 UINTN
 DoVcCommon (
   GHCB                *Ghcb,
@@ -510,6 +550,10 @@ DoVcCommon (
 
   ExitCode = Regs->ExceptionData;
   switch (ExitCode) {
+  case SvmExitCpuid:
+    NaeExit = CpuidExit;
+    break;
+
   case SvmExitIoioProt:
     NaeExit = IoioExit;
     break;
