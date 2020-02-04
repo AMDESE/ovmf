@@ -89,5 +89,11 @@ QemuFlashBeforeProbe (
   IN  UINTN                   FdBlockCount
   );
 
+VOID
+QemuFlashPtrWrite (
+  IN        volatile UINT8    *Ptr,
+  IN        UINT8             Value
+  );
+
 #endif
 
