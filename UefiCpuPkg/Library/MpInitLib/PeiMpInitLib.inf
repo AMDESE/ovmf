@@ -50,6 +50,7 @@
   UefiCpuLib
   SynchronizationLib
   PeiServicesLib
+  VmgExitLib
 
 [Pcd]
   gUefiCpuPkgTokenSpaceGuid.PcdCpuMaxLogicalProcessorNumber        ## CONSUMES
@@ -62,6 +63,8 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApTargetCstate                   ## SOMETIMES_CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdCpuShadowMicrocodeByFit             ## CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled                      ## CONSUMES
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase                   ## SOMETIMES_CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbBase                       ## CONSUMES
 
 [Guids]
   gEdkiiS3SmmInitDoneGuid
