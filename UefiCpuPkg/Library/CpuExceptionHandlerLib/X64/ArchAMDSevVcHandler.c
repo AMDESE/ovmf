@@ -86,8 +86,8 @@ typedef struct {
     UINT8  Scale;
   } Sib;
 
-  UINTN  RegData;
-  UINTN  RmData;
+  INTN  RegData;
+  INTN  RmData;
 } SEV_ES_INSTRUCTION_OPCODE_EXT;
 
 typedef struct {
@@ -157,6 +157,198 @@ GhcbSetRegValid (
   UINT32  RegBit   = Reg & 0x07;
 
   Ghcb->SaveArea.ValidBitmap[RegIndex] |= (1 << RegBit);
+}
+
+STATIC
+INT64 *
+GetRegisterPointer (
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  UINT8                    Register
+  )
+{
+  UINT64 *Reg;
+
+  switch (Register) {
+  case 0:
+    Reg = &Regs->Rax;
+    break;
+  case 1:
+    Reg = &Regs->Rcx;
+    break;
+  case 2:
+    Reg = &Regs->Rdx;
+    break;
+  case 3:
+    Reg = &Regs->Rbx;
+    break;
+  case 4:
+    Reg = &Regs->Rsp;
+    break;
+  case 5:
+    Reg = &Regs->Rbp;
+    break;
+  case 6:
+    Reg = &Regs->Rsi;
+    break;
+  case 7:
+    Reg = &Regs->Rdi;
+    break;
+  case 8:
+    Reg = &Regs->R8;
+    break;
+  case 9:
+    Reg = &Regs->R9;
+    break;
+  case 10:
+    Reg = &Regs->R10;
+    break;
+  case 11:
+    Reg = &Regs->R11;
+    break;
+  case 12:
+    Reg = &Regs->R12;
+    break;
+  case 13:
+    Reg = &Regs->R13;
+    break;
+  case 14:
+    Reg = &Regs->R14;
+    break;
+  case 15:
+    Reg = &Regs->R15;
+    break;
+  default:
+    Reg = NULL;
+  }
+  ASSERT (Reg != NULL);
+
+  return (INT64 *) Reg;
+}
+
+STATIC
+VOID
+UpdateForDisplacement (
+  SEV_ES_INSTRUCTION_DATA  *InstructionData,
+  UINTN                    Size
+  )
+{
+  InstructionData->DisplacementSize = Size;
+  InstructionData->Immediate += Size;
+  InstructionData->End += Size;
+}
+
+STATIC
+BOOLEAN
+IsRipRelative (
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  SEV_ES_INSTRUCTION_OPCODE_EXT  *Ext = &InstructionData->Ext;
+
+  return ((InstructionData == LongMode64Bit) &&
+          (Ext->ModRm.Mod == 0) &&
+          (Ext->ModRm.Rm == 5)  &&
+          (InstructionData->SibPresent == FALSE));
+}
+
+STATIC
+UINTN
+GetEffectiveMemoryAddress (
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  SEV_ES_INSTRUCTION_OPCODE_EXT  *Ext = &InstructionData->Ext;
+  INTN                           EffectiveAddress = 0;
+
+  if (IsRipRelative (InstructionData)) {
+    /* RIP-relative displacement is a 32-bit signed value */
+    INT32 RipRelative = *(INT32 *) InstructionData->Displacement;
+
+    UpdateForDisplacement (InstructionData, 4);
+    return (UINTN) ((INTN) Regs->Rip + RipRelative);
+  }
+
+  switch (Ext->ModRm.Mod) {
+  case 1:
+    UpdateForDisplacement (InstructionData, 1);
+    EffectiveAddress += (INT8) (*(INT8 *) (InstructionData->Displacement));
+    break;
+  case 2:
+    switch (InstructionData->AddrSize) {
+    case Size16Bits:
+      UpdateForDisplacement (InstructionData, 2);
+      EffectiveAddress += (INT16) (*(INT16 *) (InstructionData->Displacement));
+      break;
+    default:
+      UpdateForDisplacement (InstructionData, 4);
+      EffectiveAddress += (INT32) (*(INT32 *) (InstructionData->Displacement));
+      break;
+    }
+    break;
+  }
+
+  if (InstructionData->SibPresent) {
+    if (Ext->Sib.Index != 4) {
+      EffectiveAddress += (*GetRegisterPointer (Regs, Ext->Sib.Index) << Ext->Sib.Scale);
+    }
+
+    if ((Ext->Sib.Base != 5) || Ext->ModRm.Mod) {
+      EffectiveAddress += *GetRegisterPointer (Regs, Ext->Sib.Base);
+    } else {
+      UpdateForDisplacement (InstructionData, 4);
+      EffectiveAddress += (INT32) (*(INT32 *) (InstructionData->Displacement));
+    }
+  } else {
+    EffectiveAddress += *GetRegisterPointer (Regs, Ext->ModRm.Rm);
+  }
+
+  return (UINTN) EffectiveAddress;
+}
+
+STATIC
+VOID
+DecodeModRm (
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  SEV_ES_INSTRUCTION_REX_PREFIX  *RexPrefix = &InstructionData->RexPrefix;
+  SEV_ES_INSTRUCTION_OPCODE_EXT  *Ext = &InstructionData->Ext;
+  SEV_ES_INSTRUCTION_MODRM       *ModRm = &InstructionData->ModRm;
+  SEV_ES_INSTRUCTION_SIB         *Sib = &InstructionData->Sib;
+
+  InstructionData->ModRmPresent = TRUE;
+  ModRm->Uint8 = *(InstructionData->End);
+
+  InstructionData->Displacement++;
+  InstructionData->Immediate++;
+  InstructionData->End++;
+
+  Ext->ModRm.Mod = ModRm->Bits.Mod;
+  Ext->ModRm.Reg = (RexPrefix->Bits.R << 3) | ModRm->Bits.Reg;
+  Ext->ModRm.Rm  = (RexPrefix->Bits.B << 3) | ModRm->Bits.Rm;
+
+  Ext->RegData = *GetRegisterPointer (Regs, Ext->ModRm.Reg);
+
+  if (Ext->ModRm.Mod == 3) {
+    Ext->RmData = *GetRegisterPointer (Regs, Ext->ModRm.Rm);
+  } else {
+    if (ModRm->Bits.Rm == 4) {
+      InstructionData->SibPresent = TRUE;
+      Sib->Uint8 = *(InstructionData->End);
+
+      InstructionData->Displacement++;
+      InstructionData->Immediate++;
+      InstructionData->End++;
+
+      Ext->Sib.Scale = Sib->Bits.Scale;
+      Ext->Sib.Index = (RexPrefix->Bits.X << 3) | Sib->Bits.Index;
+      Ext->Sib.Base  = (RexPrefix->Bits.B << 3) | Sib->Bits.Base;
+    }
+
+    Ext->RmData = GetEffectiveMemoryAddress (Regs, InstructionData);
+  }
 }
 
 STATIC
@@ -289,6 +481,111 @@ UnsupportedExit (
     Event.Elements.Valid  = 1;
 
     Status = Event.Uint64;
+  }
+
+  return Status;
+}
+
+STATIC
+UINT64
+MmioExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  ExitInfo1, ExitInfo2, Status;
+  UINTN   Bytes;
+  INTN    *Register;
+
+  Bytes = 0;
+
+  switch (*(InstructionData->OpCodes)) {
+  /* MMIO write */
+  case 0x88:
+    Bytes = 1;
+  case 0x89:
+    DecodeModRm (Regs, InstructionData);
+    Bytes = (Bytes) ? Bytes
+                    : (InstructionData->DataSize == Size16Bits) ? 2
+                    : (InstructionData->DataSize == Size32Bits) ? 4
+                    : (InstructionData->DataSize == Size64Bits) ? 8
+                    : 0;
+
+    if (InstructionData->Ext.ModRm.Mod == 3) {
+      /* NPF on two register operands??? */
+      return UnsupportedExit (Ghcb, Regs, InstructionData);
+    }
+
+    ExitInfo1 = InstructionData->Ext.RmData;
+    ExitInfo2 = Bytes;
+    CopyMem (Ghcb->SharedBuffer, &InstructionData->Ext.RegData, Bytes);
+
+    Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    Status = VmgExit (Ghcb, SvmExitMmioWrite, ExitInfo1, ExitInfo2);
+    if (Status) {
+      return Status;
+    }
+    break;
+
+  case 0xC6:
+    Bytes = 1;
+  case 0xC7:
+    DecodeModRm (Regs, InstructionData);
+    Bytes = (Bytes) ? Bytes
+                    : (InstructionData->DataSize == Size16Bits) ? 2
+                    : (InstructionData->DataSize == Size32Bits) ? 4
+                    : 0;
+
+    InstructionData->ImmediateSize = Bytes;
+    InstructionData->End += Bytes;
+
+    ExitInfo1 = InstructionData->Ext.RmData;
+    ExitInfo2 = Bytes;
+    CopyMem (Ghcb->SharedBuffer, InstructionData->Immediate, Bytes);
+
+    Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    Status = VmgExit (Ghcb, SvmExitMmioWrite, ExitInfo1, ExitInfo2);
+    if (Status) {
+      return Status;
+    }
+    break;
+
+  /* MMIO read */
+  case 0x8A:
+    Bytes = 1;
+  case 0x8B:
+    DecodeModRm (Regs, InstructionData);
+    Bytes = (Bytes) ? Bytes
+                    : (InstructionData->DataSize == Size16Bits) ? 2
+                    : (InstructionData->DataSize == Size32Bits) ? 4
+                    : (InstructionData->DataSize == Size64Bits) ? 8
+                    : 0;
+    if (InstructionData->Ext.ModRm.Mod == 3) {
+      /* NPF on two register operands??? */
+      return UnsupportedExit (Ghcb, Regs, InstructionData);
+    }
+
+    ExitInfo1 = InstructionData->Ext.RmData;
+    ExitInfo2 = Bytes;
+
+    Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    Status = VmgExit (Ghcb, SvmExitMmioRead, ExitInfo1, ExitInfo2);
+    if (Status) {
+      return Status;
+    }
+
+    Register = GetRegisterPointer (Regs, InstructionData->Ext.ModRm.Reg);
+    if (Bytes == 4) {
+      /* Zero-extend for 32-bit operation */
+      *Register = 0;
+    }
+    CopyMem (Register, Ghcb->SharedBuffer, Bytes);
+    break;
+
+  default:
+    Status = GP_EXCEPTION;
+    ASSERT (0);
   }
 
   return Status;
@@ -605,6 +902,10 @@ DoVcCommon (
 
   case SvmExitMsr:
     NaeExit = MsrExit;
+    break;
+
+  case SvmExitNpf:
+    NaeExit = MmioExit;
     break;
 
   default:
