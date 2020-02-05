@@ -593,6 +593,31 @@ MmioExit (
 
 STATIC
 UINT64
+MwaitExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  Status;
+
+  DecodeModRm (Regs, InstructionData);
+
+  Ghcb->SaveArea.Rax = Regs->Rax;
+  GhcbSetRegValid (Ghcb, GhcbRax);
+  Ghcb->SaveArea.Rcx = Regs->Rcx;
+  GhcbSetRegValid (Ghcb, GhcbRcx);
+
+  Status = VmgExit (Ghcb, SvmExitMwait, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  return 0;
+}
+
+STATIC
+UINT64
 MonitorExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -1105,6 +1130,10 @@ DoVcCommon (
 
   case SvmExitMonitor:
     NaeExit = MonitorExit;
+    break;
+
+  case SvmExitMwait:
+    NaeExit = MwaitExit;
     break;
 
   case SvmExitNpf:
