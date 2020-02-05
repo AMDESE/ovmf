@@ -896,6 +896,34 @@ CpuidExit (
 
 STATIC
 UINT64
+RdpmcExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  Status;
+
+  Ghcb->SaveArea.Rcx = Regs->Rcx;
+  GhcbSetRegValid (Ghcb, GhcbRcx);
+
+  Status = VmgExit (Ghcb, SvmExitRdpmc, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  if (!GhcbIsRegValid (Ghcb, GhcbRax) ||
+      !GhcbIsRegValid (Ghcb, GhcbRdx)) {
+    return UnsupportedExit (Ghcb, Regs, InstructionData);
+  }
+  Regs->Rax = Ghcb->SaveArea.Rax;
+  Regs->Rdx = Ghcb->SaveArea.Rdx;
+
+  return 0;
+}
+
+STATIC
+UINT64
 RdtscExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -937,6 +965,10 @@ DoVcCommon (
   switch (ExitCode) {
   case SvmExitRdtsc:
     NaeExit = RdtscExit;
+    break;
+
+  case SvmExitRdpmc:
+    NaeExit = RdpmcExit;
     break;
 
   case SvmExitCpuid:
