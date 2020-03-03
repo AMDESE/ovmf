@@ -593,6 +593,24 @@ MmioExit (
 
 STATIC
 UINT64
+WbinvdExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  UINT64  Status;
+
+  Status = VmgExit (Ghcb, SvmExitWbinvd, 0, 0);
+  if (Status) {
+    return Status;
+  }
+
+  return 0;
+}
+
+STATIC
+UINT64
 MsrExit (
   GHCB                     *Ghcb,
   EFI_SYSTEM_CONTEXT_X64   *Regs,
@@ -902,6 +920,10 @@ DoVcCommon (
 
   case SvmExitMsr:
     NaeExit = MsrExit;
+    break;
+
+  case SvmExitWbinvd:
+    NaeExit = WbinvdExit;
     break;
 
   case SvmExitNpf:
