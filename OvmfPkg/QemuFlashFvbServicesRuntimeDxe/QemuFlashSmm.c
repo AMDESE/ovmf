@@ -46,3 +46,12 @@ QemuFlashBeforeProbe (
              );
   ASSERT_EFI_ERROR (Status);
 }
+
+VOID
+QemuFlashPtrWrite (
+  IN        volatile UINT8    *Ptr,
+  IN        UINT8             Value
+  )
+{
+  *Ptr = Value;
+}

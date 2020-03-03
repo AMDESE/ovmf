@@ -10,6 +10,8 @@
 **/
 
 #include <Library/UefiRuntimeLib.h>
+#include <Library/MemEncryptSevLib.h>
+#include <Library/VmgExitLib.h>
 
 #include "QemuFlash.h"
 
@@ -31,4 +33,17 @@ QemuFlashBeforeProbe (
   //
   // Do nothing
   //
+}
+
+VOID
+QemuFlashPtrWrite (
+  IN        volatile UINT8    *Ptr,
+  IN        UINT8             Value
+  )
+{
+  if (MemEncryptSevEsIsEnabled ()) {
+    VmgMmioWrite ((UINT8 *) Ptr, &Value, 1);
+  } else {
+    *Ptr = Value;
+  }
 }
