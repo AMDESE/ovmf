@@ -82,6 +82,10 @@
 
 %include "Main.asm"
 
+  %define SEV_SNP_CPUID_PAGE (FixedPcdGet32 (PcdOvmfSnpCpuidBase))
+  %define SEV_SNP_SECRET_PAGE (FixedPcdGet32 (PcdOvmfSnpSecretBase))
+  %define SEV_SNP_VALIDATE_START (FixedPcdGet32 (PcdOvmfSecPageTablesBase))
+  %define SEV_SNP_VALIDATE_SIZE (0x200000 - (FixedPcdGet32 (PcdOvmfSnpCpuidSize) + FixedPcdGet32 (PcdOvmfSnpSecretSize)))
   %define SEV_ES_AP_RESET_IP  FixedPcdGet32 (PcdSevEsWorkAreaBase)
 %include "Ia16/ResetVectorVtf0.asm"
 
