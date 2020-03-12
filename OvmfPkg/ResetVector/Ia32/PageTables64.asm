@@ -262,12 +262,6 @@ pageTableEntries4kLoop:
     mov     ecx, (GHCB_BASE & 0x1F_FFFF) >> 12
     mov     [ecx * 8 + GHCB_PT_ADDR + 4], strict dword 0
 
-    mov     ecx, GHCB_SIZE / 4
-    xor     eax, eax
-clearGhcbMemoryLoop:
-    mov     dword[ecx * 4 + GHCB_BASE - 4], eax
-    loop    clearGhcbMemoryLoop
-
 SetCr3:
     ;
     ; Set CR3 now that the paging structures are available
