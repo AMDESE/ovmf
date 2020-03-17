@@ -48,6 +48,7 @@ typedef enum {
   SvmExitNmiComplete,
   SvmExitApResetHold,
   SvmExitApJumpTable,
+  SvmExitSnpMemOp,
 
   SvmExitUnsupported   = 0x8000FFFF,
 } SVM_EXITCODE;
@@ -132,5 +133,29 @@ typedef union {
 #define GHCB_EVENT_INJECTION_TYPE_NMI        2
 #define GHCB_EVENT_INJECTION_TYPE_EXCEPTION  3
 #define GHCB_EVENT_INJECTION_TYPE_SOFT_INT   4
+
+typedef union {
+  struct {
+    UINT64  NumOfPages:12;
+    UINT64  GuestFrameNumber:40;
+    UINT64  Type:3;
+    UINT64  Rsvd: 8;
+    UINT64  RmpPageSize : 1;
+  } Data;
+
+  UINT64  Uint64;
+} GHCB_MEM_OP;
+
+typedef union {
+  struct {
+    UINT64 NumElements:32;
+    UINT64 Rsvd:32;
+  } Data;
+
+  UINT64 Uint64;
+} GHCB_MEM_OP_HDR;
+
+#define MEM_OP_TYPE_SHARED                    1
+#define MEM_OP_TYPE_PRIVATE                   2
 
 #endif
