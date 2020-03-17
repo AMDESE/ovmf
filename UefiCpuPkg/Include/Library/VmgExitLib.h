@@ -108,4 +108,20 @@ VmgExitSetAPJumpTable (
   EFI_PHYSICAL_ADDRESS  Address
   );
 
+/**
+  Perform the Memory operation for the specified address range.
+
+  @param[in]  EFI_PHYSICAL_ADDRESS      Start address
+  @param[in]  UINTN                     Number of pages
+  @param[in]  UINT8                     Memory Operation type
+
+**/
+EFI_STATUS
+EFIAPI
+VmgSnpMemOperation (
+  EFI_PHYSICAL_ADDRESS      Start,
+  UINTN                     NumOfPages,
+  UINTN                     Type
+  );
+
 #endif

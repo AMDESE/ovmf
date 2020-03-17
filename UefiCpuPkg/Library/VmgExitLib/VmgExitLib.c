@@ -241,3 +241,70 @@ VmgExitSetAPJumpTable (
   return Status;
 }
 
+#define MEM_OP_MAX_NPAGES  4095
+
+/**
+  Perform the SNP specific Memory operation for the specified address range.
+
+  @param[in]  EFI_PHYSICAL_ADDRESS      Start address
+  @param[in]  UINTN                     Number of pages
+  @param[in]  UINT8                     Memory Operation Command
+
+**/
+EFI_STATUS
+EFIAPI
+VmgSnpMemOperation (
+  EFI_PHYSICAL_ADDRESS      Start,
+  UINTN                     NumOfPages,
+  UINTN                     MemOp
+  )
+{
+  UINT64                    Status;
+  GHCB                      *Ghcb;
+  MSR_SEV_ES_GHCB_REGISTER  Msr;
+  GHCB_MEM_OP_HDR           *Hdr;
+  GHCB_MEM_OP               *Info;
+  UINT8                     *MemOpBuf;
+  UINTN                     i, MaxNumEntries;
+
+  Msr.GhcbPhysicalAddress = AsmReadMsr64 (MSR_SEV_ES_GHCB);
+  Ghcb = Msr.Ghcb;
+
+  VmgInit (Ghcb);
+
+  Ghcb->SaveArea.SwScratch = (UINT64) (UINTN) Ghcb->SharedBuffer;
+
+  MemOpBuf = (UINT8 *)(UINTN)Ghcb->SaveArea.SwScratch;
+  Hdr = (GHCB_MEM_OP_HDR *)MemOpBuf;
+  Info = (GHCB_MEM_OP *) (MemOpBuf + sizeof (*Hdr));
+
+  MaxNumEntries = (sizeof (Ghcb->SharedBuffer) - sizeof (*Hdr)) / sizeof (*Info);
+
+  while (NumOfPages) {
+
+    Hdr->Data.NumElements = 0;
+
+    for (i = 0; NumOfPages && i < MaxNumEntries; i++) {
+      Info->Data.GuestFrameNumber = Start >> EFI_PAGE_SHIFT;
+      Info->Data.NumOfPages = MIN (NumOfPages, MEM_OP_MAX_NPAGES);
+      Info->Data.RmpPageSize = 0; // hardcode to 4K
+      Info->Data.Type = MemOp;
+
+      Hdr->Data.NumElements++;
+      NumOfPages -=  Info->Data.NumOfPages;
+      Start += EFI_PAGES_TO_SIZE(Info->Data.NumOfPages);
+      Info++;
+    }
+
+    Status = VmgExit (Ghcb, SvmExitSnpMemOp, 0, 0);
+    if (Status) {
+      return Status;
+    }
+  }
+
+  ASSERT (Hdr->Data.NumElements == 0);
+
+  VmgDone (Ghcb);
+
+  return Status;
+}
