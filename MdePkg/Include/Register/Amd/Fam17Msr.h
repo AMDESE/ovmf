@@ -44,6 +44,13 @@ typedef union {
     UINT64  ReasonCode:8;
   } GhcbTerminate;
 
+  struct {
+    UINT64  Function :12;
+    UINT64  GuestFrameNumber :40;
+    UINT64  Rsvd :11;
+    UINT64  RmpPageSize :1;
+  } GhcbSnpMemOp;
+
   VOID    *Ghcb;
 
   UINT64  GhcbPhysicalAddress;
@@ -53,6 +60,8 @@ typedef union {
 #define GHCB_INFO_SEV_INFO_GET             2
 #define GHCB_INFO_CPUID_REQUEST            4
 #define GHCB_INFO_CPUID_RESPONSE           5
+#define GHCB_INFO_SNP_MEM_OP_PRIVATE       6
+#define GHCB_INFO_SNP_MEM_OP_SHARED        7
 #define GHCB_INFO_TERMINATE_REQUEST        256
 
 #define GHCB_TERMINATE_GHCB                0
