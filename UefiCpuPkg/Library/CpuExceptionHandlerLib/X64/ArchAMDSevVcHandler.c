@@ -1136,6 +1136,33 @@ Dr7ReadExit (
   return 0;
 }
 
+STATIC
+UINT64
+PageNotValidatedExit (
+  GHCB                     *Ghcb,
+  EFI_SYSTEM_CONTEXT_X64   *Regs,
+  SEV_ES_INSTRUCTION_DATA  *InstructionData
+  )
+{
+  EFI_PHYSICAL_ADDRESS      Address;
+  UINT64                    Status;
+  UINT64                    Validate;
+  UINT64                    RmpPageSize;
+
+  //
+  // Issue the PVALIDATE instruction to validate the memory range
+  //
+  Validate = 1;
+  RmpPageSize = 0;
+  Address = Regs->Cr2;
+
+  asm volatile (".byte 0xF2,0x0F,0x01,0xFF\n"
+                : "=a" (Status)
+                : "a"(Address), "c"(RmpPageSize), "d"(Validate) : "memory");
+
+  return Status;
+}
+
 UINTN
 DoVcCommon (
   GHCB                *Ghcb,
@@ -1208,6 +1235,10 @@ DoVcCommon (
     NaeExit = MmioExit;
     break;
 
+  case SvmExitPageNotValidated:
+    NaeExit = PageNotValidatedExit;
+    break;
+
   default:
     NaeExit = UnsupportedExit;
   }
@@ -1215,8 +1246,14 @@ DoVcCommon (
   InitInstructionData (&InstructionData, Ghcb, Regs);
 
   Status = NaeExit (Ghcb, Regs, &InstructionData);
+
   if (Status == 0) {
-    Regs->Rip += InstructionLength(&InstructionData);
+    //
+    // If ExitCode was PageNotValidated then do not advance the RIP
+    //
+    if (ExitCode != SvmExitPageNotValidated) {
+        Regs->Rip += InstructionLength(&InstructionData);
+    }
     VcRet = 0;
   } else {
     GHCB_EVENT_INJECTION  Event;

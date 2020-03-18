@@ -41,6 +41,7 @@ typedef enum {
   SvmExitMonitor,
   SvmExitMwait,
   SvmExitNpf           = 0x400,
+  SvmExitPageNotValidated = 0x404,
 
   // VMG special exits
   SvmExitMmioRead      = 0x80000001,
