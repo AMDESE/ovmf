@@ -12,6 +12,8 @@
 **/
 
 #include <Library/CpuLib.h>
+#include <Library/MemEncryptSevLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
 #include <Register/Amd/Cpuid.h>
 #include <Register/Cpuid.h>
 
@@ -850,14 +852,30 @@ InternalMemEncryptSevSetMemoryDecrypted (
   IN  BOOLEAN                 Flush
   )
 {
+  EFI_STATUS            Status;
 
-  return SetMemoryEncDec (
+  Status = SetMemoryEncDec (
            Cr3BaseAddress,
            PhysicalAddress,
            Length,
            ClearCBit,
            Flush
            );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  //
+  // If SNP is enabled then unvalidate the memory range
+  //
+  if (Flush && MemEncryptSevSnpIsEnabled ()) {
+    Status = MemEncryptPageUnvalidate (PhysicalAddress, EFI_SIZE_TO_PAGES (Length));
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+  }
+
+  return Status;
 }
 
 /**
@@ -887,11 +905,25 @@ InternalMemEncryptSevSetMemoryEncrypted (
   IN  BOOLEAN                 Flush
   )
 {
-  return SetMemoryEncDec (
-           Cr3BaseAddress,
-           PhysicalAddress,
-           Length,
-           SetCBit,
-           Flush
-           );
+  EFI_STATUS            Status;
+
+  Status = SetMemoryEncDec (
+             Cr3BaseAddress,
+             PhysicalAddress,
+             Length,
+             SetCBit,
+             Flush
+             );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  //
+  // If SNP is enabled then validate the memory range
+  //
+  if (MemEncryptSevSnpIsEnabled ()) {
+    Status = MemEncryptPageValidate (PhysicalAddress, EFI_SIZE_TO_PAGES (Length));
+  }
+
+  return Status;
 }
