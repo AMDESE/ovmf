@@ -34,6 +34,7 @@ Module Name:
 #include <Library/ResourcePublicationLib.h>
 #include <Library/MtrrLib.h>
 #include <Library/QemuFwCfgLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
 
 #include "Platform.h"
 #include "Cmos.h"
@@ -651,6 +652,14 @@ PublishPeiMemory (
   //
   if (FeaturePcdGet (PcdSmmSmramRequire) && mQ35SmramAtDefaultSmbase) {
     ASSERT (SMM_DEFAULT_SMBASE + MCH_DEFAULT_SMBASE_SIZE <= MemoryBase);
+  }
+
+  //
+  // If SEV-SNP is enabled then validate the memory range
+  //
+  if (MemEncryptSevSnpIsEnabled ()) {
+    Status = MemEncryptPageValidate (MemoryBase, EFI_SIZE_TO_PAGES(MemorySize));
+    ASSERT_EFI_ERROR (Status);
   }
 
   //
