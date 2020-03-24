@@ -28,6 +28,7 @@
 #include <Library/QemuFwCfgLib.h>
 #include <Library/QemuFwCfgS3Lib.h>
 #include <Library/ResourcePublicationLib.h>
+#include <Library/MemEncryptSevLib.h>
 #include <Guid/MemoryTypeInformation.h>
 #include <Ppi/MasterBootMode.h>
 #include <IndustryStandard/I440FxPiix4.h>
@@ -38,6 +39,11 @@
 
 #include "Platform.h"
 #include "Cmos.h"
+
+//
+// Anything greater than >4GB is marked unaccepted
+//
+#define SEV_SNP_UNACCEPTED_BASE_START      0x100000000
 
 EFI_MEMORY_TYPE_INFORMATION mDefaultMemoryTypeInformation[] = {
   { EfiACPIMemoryNVS,       0x004 },
@@ -118,6 +124,27 @@ AddIoMemoryRangeHob (
   AddIoMemoryBaseSizeHob (MemoryBase, (UINT64)(MemoryLimit - MemoryBase));
 }
 
+VOID
+AddUnacceptedMemoryBaseSizeHob (
+  EFI_PHYSICAL_ADDRESS        MemoryBase,
+  UINT64                      MemorySize
+  )
+{
+  DEBUG ((EFI_D_INFO, "%a Base=0x%Lx Limit=0x%Lx\n", __FUNCTION__, MemoryBase, MemorySize));
+
+  BuildResourceDescriptorHob (
+    EFI_RESOURCE_MEMORY_UNACCEPTED,
+      EFI_RESOURCE_ATTRIBUTE_PRESENT |
+      EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
+      EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE |
+      EFI_RESOURCE_ATTRIBUTE_WRITE_COMBINEABLE |
+      EFI_RESOURCE_ATTRIBUTE_WRITE_THROUGH_CACHEABLE |
+      EFI_RESOURCE_ATTRIBUTE_WRITE_BACK_CACHEABLE |
+      EFI_RESOURCE_ATTRIBUTE_TESTED,
+    MemoryBase,
+    MemorySize
+    );
+}
 
 VOID
 AddMemoryBaseSizeHob (
@@ -125,6 +152,31 @@ AddMemoryBaseSizeHob (
   UINT64                      MemorySize
   )
 {
+
+  //
+  // If SNP is enabled then add the memory range >= SEV_SNP_UNACCEPTABLE_BASE_START as unacceptable region.
+  //
+  if (MemEncryptSevSnpIsEnabled ()) {
+    EFI_PHYSICAL_ADDRESS Offset;
+    EFI_PHYSICAL_ADDRESS UnaccBase;
+
+    if ((UINT64)(MemoryBase + MemorySize) >= SEV_SNP_UNACCEPTED_BASE_START) {
+      UnaccBase = MAX(SEV_SNP_UNACCEPTED_BASE_START, MemoryBase);
+      Offset = UnaccBase - MemoryBase;
+
+      AddUnacceptedMemoryBaseSizeHob (UnaccBase, MemorySize - Offset);
+
+      MemorySize = Offset;
+
+      //
+      // If there is nothing to add then we return from here.
+      //
+      if (MemorySize == 0) {
+        return;
+      }
+    }
+  }
+
   BuildResourceDescriptorHob (
     EFI_RESOURCE_SYSTEM_MEMORY,
       EFI_RESOURCE_ATTRIBUTE_PRESENT |
