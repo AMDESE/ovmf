@@ -11,7 +11,7 @@ SECTION .text
 global ASM_PFX(SetMemoryEncDecHypercall3)
 ASM_PFX(SetMemoryEncDecHypercall3):
   ; Copy HypercallNumber to rax
-  mov rax, 11
+  mov rax, 12
   ; Copy Arg1 to the register expected by KVM
   mov rbx, rcx
   ; Copy Arg2 to register expected by KVM
@@ -19,6 +19,6 @@ ASM_PFX(SetMemoryEncDecHypercall3):
   ; Copy Arg2 to register expected by KVM
   mov rdx, r8
   ; Call VMMCALL
-  DB 0x0F, 0x01, 0xD9
+  vmmcall
   ret
 
