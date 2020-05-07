@@ -24,6 +24,7 @@
   PlatformConfig.c
   PlatformConfig.h
   PlatformForms.vfr
+  AmdSev.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -56,6 +57,7 @@
 [Guids]
   gEfiIfrTianoGuid
   gOvmfPlatformConfigGuid
+  gMemEncryptGuid
 
 [Depex]
   gEfiHiiConfigRoutingProtocolGuid  AND
