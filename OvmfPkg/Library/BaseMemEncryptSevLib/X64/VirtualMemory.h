@@ -234,4 +234,26 @@ InternalMemEncryptSevSetMemoryEncrypted (
   IN  BOOLEAN                 Flush
   );
 
+/**
+ This hyercall is used to notify hypervisor when a page is marked as
+ 'decrypted' (i.e C-bit removed).
+
+ @param[in]   PhysicalAddress       The physical address that is the start address
+                                    of a memory region.
+ @param[in]   Length                The length of memory region
+ @param[in]   Mode                  SetCBit or ClearCBit
+
+@retval RETURN_SUCCESS              Hypercall returned success.
+@retval 1                           The physical address is not PAGE_SIZE aligned.
+
+**/
+
+INTN
+EFIAPI
+SetMemoryEncDecHypercall3 (
+  IN  UINTN     PhysicalAddress,
+  IN  UINTN     Length,
+  IN  UINTN     Mode
+  );
+
 #endif
