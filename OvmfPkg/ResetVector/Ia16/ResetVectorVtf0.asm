@@ -48,9 +48,13 @@ ALIGN   16
 ;   program the EIP register with the IP value as read.
 ;
 
-TIMES (32 - (sevEsResetBlockEnd - sevEsResetBlockStart)) DB 0
+TIMES (48 - (sevEsResetBlockEnd - sevEsResetBlockStart)) DB 0
 
 sevEsResetBlockStart:
+    DD      SEV_SNP_VALIDATE_SIZE
+    DD      SEV_SNP_VALIDATE_START
+    DD      SEV_SNP_SECRET_PAGE
+    DD      SEV_SNP_CPUID_PAGE
     DD      SEV_ES_AP_RESET_IP
     DW      sevEsResetBlockEnd - sevEsResetBlockStart
     DB      0xDE, 0x71, 0xF7, 0x00, 0x7E, 0x1A, 0xCB, 0x4F

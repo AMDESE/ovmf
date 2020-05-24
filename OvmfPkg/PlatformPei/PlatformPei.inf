@@ -110,6 +110,10 @@
   gUefiCpuPkgTokenSpaceGuid.PcdCpuBootLogicalProcessorNumber
   gUefiCpuPkgTokenSpaceGuid.PcdCpuApStackSize
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidSize
 
 [FixedPcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress

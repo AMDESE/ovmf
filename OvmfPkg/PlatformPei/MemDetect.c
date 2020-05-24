@@ -889,6 +889,24 @@ InitializeRamRegions (
         EfiACPIMemoryNVS
         );
     }
+
+    if (MemEncryptSevSnpIsEnabled ()) {
+      //
+      // If SEV-SNP is enabled, reserve the Secret and CPUID pages.
+      //
+      BuildMemoryAllocationHob (
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpSecretBase),
+        (UINT64)(UINTN) PcdGet32 (PcdOvmfSnpSecretSize),
+        EfiACPIMemoryNVS
+        );
+
+      BuildMemoryAllocationHob (
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpCpuidBase),
+        (UINT64)(UINTN) PcdGet32 (PcdOvmfSnpCpuidSize),
+        EfiACPIMemoryNVS
+        );
+    }
+
 #endif
   }
 
