@@ -41,6 +41,7 @@
 #define SVM_EXIT_MONITOR        0x8AULL
 #define SVM_EXIT_MWAIT          0x8BULL
 #define SVM_EXIT_NPF            0x400ULL
+#define SVM_EXIT_PAGE_NOT_VALIDATED 0x404ULL
 
 // VMG Special Exits
 #define SVM_EXIT_MMIO_READ      0x80000001ULL
