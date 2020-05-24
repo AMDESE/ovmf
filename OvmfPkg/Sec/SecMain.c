@@ -382,6 +382,19 @@ DecompressMemFvs (
   ASSERT ((UINTN)ScratchBuffer + ScratchBufferSize ==
     PcdGet32 (PcdOvmfDecompressionScratchEnd));
 
+  //
+  // If SEV-SNP is enabled then validate the memory before accessing it.
+  //
+  if (SevSnpIsEnabled ()) {
+    Status = MemEncryptRmpupdate ((EFI_PHYSICAL_ADDRESS)(UINTN)OutputBuffer,
+                        EFI_SIZE_TO_PAGES(OutputBufferSize), MemoryTypePrivate, TRUE);
+    ASSERT_EFI_ERROR (Status);
+
+    Status = MemEncryptRmpupdate ((EFI_PHYSICAL_ADDRESS)(UINTN)ScratchBuffer,
+                        EFI_SIZE_TO_PAGES(ScratchBufferSize), MemoryTypePrivate, TRUE);
+    ASSERT_EFI_ERROR (Status);
+  }
+
   Status = ExtractGuidedSectionDecode (
              Section,
              &OutputBuffer,
