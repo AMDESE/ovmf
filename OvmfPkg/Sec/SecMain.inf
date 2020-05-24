@@ -40,6 +40,7 @@
   BaseLib
   DebugLib
   BaseMemoryLib
+  BaseMemEncryptPageValidateLib
   PeiServicesLib
   PcdLib
   UefiCpuLib

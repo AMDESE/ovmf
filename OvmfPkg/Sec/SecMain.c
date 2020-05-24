@@ -25,6 +25,8 @@
 #include <Library/ExtractGuidedSectionLib.h>
 #include <Library/LocalApicLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
+
 #include <Register/Amd/Ghcb.h>
 #include <Register/Amd/Msr.h>
 
@@ -45,6 +47,12 @@ VOID
 EFIAPI
 SecStartupPhase2 (
   IN VOID                     *Context
+  );
+
+STATIC
+BOOLEAN
+SevSnpIsEnabled (
+  VOID
   );
 
 EFI_STATUS
@@ -767,6 +775,7 @@ SevEsProtocolCheck (
 {
   MSR_SEV_ES_GHCB_REGISTER  Msr;
   GHCB                      *Ghcb;
+  EFI_STATUS                Status;
 
   //
   // Use the GHCB MSR Protocol to obtain the GHCB SEV-ES Information for
@@ -791,6 +800,22 @@ SevEsProtocolCheck (
   if ((Msr.GhcbProtocol.SevEsProtocolMin > GHCB_VERSION_MAX) ||
       (Msr.GhcbProtocol.SevEsProtocolMax < GHCB_VERSION_MIN)) {
     SevEsProtocolFailure (GHCB_TERMINATE_GHCB_PROTOCOL);
+  }
+
+  //
+  // If SEV-SNP is enabled then make the GHCB a shared page before
+  // we write anything to it. The GHCB memory range is validated by
+  // the Qemu but Reset vector has mapped the memory as C=0 (i.e
+  // it must be mapped as shared).
+  //
+  if (SevSnpIsEnabled ()) {
+    Status = MemEncryptRmpupdate (
+                      (EFI_PHYSICAL_ADDRESS)FixedPcdGet32 (PcdOvmfSecGhcbBase),
+                      EFI_SIZE_TO_PAGES(FixedPcdGet32 (PcdOvmfSecGhcbSize)),
+                      MemoryTypeShared,
+                      FALSE
+                      );
+    ASSERT_EFI_ERROR (Status);
   }
 
   //
@@ -831,6 +856,30 @@ SevEsIsEnabled (
   SevEsWorkArea = (SEC_SEV_ES_WORK_AREA *) FixedPcdGet32 (PcdSevEsWorkAreaBase);
 
   return ((SevEsWorkArea != NULL) && (SevEsWorkArea->SevEsEnabled != 0));
+}
+
+STATIC
+BOOLEAN
+SevSnpIsEnabled (
+  VOID
+  )
+{
+  MSR_SEV_STATUS_REGISTER           Msr;
+
+  // Check if ES is enabled so that we know for sure that RDMSR will not
+  // cause #VC for the SEV_STATUS_MSR
+  if (!SevEsIsEnabled()) {
+    return FALSE;
+  }
+  //
+  // Check MSR_0xC0010131 Bit 2 (Sev-Snp Enabled)
+  //
+  Msr.Uint32 = AsmReadMsr32 (MSR_SEV_STATUS);
+  if (Msr.Bits.SevSnpBit) {
+   return TRUE;
+  }
+
+  return FALSE;
 }
 
 VOID
