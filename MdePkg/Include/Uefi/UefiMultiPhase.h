@@ -103,6 +103,7 @@ typedef enum {
   /// however it happens to also support byte-addressable non-volatility.
   ///
   EfiPersistentMemory,
+  EfiUnacceptedMemory,
   EfiMaxMemoryType
 } EFI_MEMORY_TYPE;
 
