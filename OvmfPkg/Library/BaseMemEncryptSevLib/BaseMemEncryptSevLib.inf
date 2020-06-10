@@ -46,6 +46,7 @@
   DebugLib
   MemoryAllocationLib
   PcdLib
+  BaseMemEncryptPageValidateLib
 
 [FeaturePcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdSmmSmramRequire
