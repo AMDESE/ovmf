@@ -76,6 +76,62 @@ AmdSevSnpVaildateSystemRam (
 }
 
 /**
+ Dump the secret page contents for the debugging purposes
+ */
+typedef PACKED struct SEV_Secret_Page {
+  UINT32  Version;
+  UINT32  Rsvd1:31;
+  UINT32  ImiEn:1;
+  UINT8   Rsvd2[24];
+  UINT8   Vmpck0[32];
+  UINT8   Vmpck1[32];
+  UINT8   Vmpck2[32];
+  UINT8   Vmpck3[32];
+  UINT8   Rsvd3[3936];
+} SEV_Secret_Page_Data;
+
+STATIC
+VOID
+HexDumpBytes (
+  UINT8     *Buffer,
+  UINT32    Length
+  )
+{
+  UINTN     i;
+
+  for (i = 0; i < Length; i++) {
+    DEBUG ((EFI_D_INFO, "%02x", Buffer[i])); 
+  }
+
+  DEBUG ((EFI_D_INFO, "\n"));
+}
+
+STATIC
+VOID
+DumpSecretPage (
+  VOID
+  )
+{
+  SEV_Secret_Page_Data          *Secret;
+
+  //
+  // For debug purposes dump the contents of the Secret Page
+  //
+  Secret = (SEV_Secret_Page_Data *)(UINTN)FixedPcdGet32 (PcdOvmfSnpSecretBase);
+  DEBUG ((EFI_D_INFO, "Secret Page @ 0x%Lx\n", (UINTN)Secret));
+  DEBUG ((EFI_D_INFO, "  Version : %d\n", Secret->Version));
+  DEBUG ((EFI_D_INFO, "  ImiEn   : %d\n", Secret->ImiEn));
+  DEBUG ((EFI_D_INFO, "  VMPCK0  :"));
+  HexDumpBytes(Secret->Vmpck0, 32);
+  DEBUG ((EFI_D_INFO, "  VMPCK1  :"));
+  HexDumpBytes(Secret->Vmpck1, 32);
+  DEBUG ((EFI_D_INFO, "  VMPCK2  :"));
+  HexDumpBytes(Secret->Vmpck2, 32);
+  DEBUG ((EFI_D_INFO, "  VMPCK3  :"));
+  HexDumpBytes(Secret->Vmpck3, 32);
+}
+
+/**
 
   Initialize SEV-ES support if running as an SEV-ES guest.
 
@@ -107,6 +163,9 @@ AmdSevSnpInitialize (
       }
     }
   }
+
+  // For debug only
+  DumpSecretPage();
 }
 /**
 
