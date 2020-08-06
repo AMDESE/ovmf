@@ -12,6 +12,8 @@
 **/
 
 #include <Library/CpuLib.h>
+#include <Library/MemEncryptSevLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
 #include <Register/Amd/Cpuid.h>
 #include <Register/Cpuid.h>
 
@@ -589,22 +591,43 @@ SetMemoryEncDec (
   UINT64                         AddressEncMask;
   BOOLEAN                        IsWpEnabled;
   RETURN_STATUS                  Status;
+  BOOLEAN                        NeedRmpupdate, Pvalidate;
+  MEM_OP_REQ                     MemOp;
+  PHYSICAL_ADDRESS               OrigPhysicalAddress;
+  UINTN                          OrigLength;
 
   //
   // Set PageMapLevel4Entry to suppress incorrect compiler/analyzer warnings.
   //
   PageMapLevel4Entry = NULL;
 
+  //
+  // If SNP is enabled then pages need to be validate or rescind the page
+  // based on the C-bit state in the page table.
+  //
+  NeedRmpupdate = MemEncryptSevSnpIsEnabled ();
+
+  //
+  // TODO: CacheFlush = FALSE request hints that its an MMIO address for which we need
+  // to clear the C-bit. If its an MMIO address then we don't need to update the
+  // RMP table. This is mainly because MMIO address are not part of the guest memory
+  // and does not contain the encrypted data.
+  //
+  if ((Mode == ClearCBit) && (CacheFlush == FALSE)) {
+    NeedRmpupdate = FALSE;
+  }
+
   DEBUG ((
     DEBUG_VERBOSE,
-    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u\n",
+    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u Rmpupdate=%u\n",
     gEfiCallerBaseName,
     __FUNCTION__,
     Cr3BaseAddress,
     PhysicalAddress,
     (UINT64)Length,
     (Mode == SetCBit) ? "Encrypt" : "Decrypt",
-    (UINT32)CacheFlush
+    (UINT32)CacheFlush,
+    NeedRmpupdate
     ));
 
   //
@@ -639,6 +662,35 @@ SetMemoryEncDec (
   }
 
   Status = EFI_SUCCESS;
+
+  //
+  // Convert mode to Memory Type
+  //
+  if (Mode == ClearCBit) {
+    MemOp = MemoryTypeShared;
+  } else {
+    MemOp = MemoryTypePrivate;
+  }
+
+  Pvalidate = TRUE;
+
+  //
+  // Validate the shared pages before we clear the C-bit
+  //
+  if (NeedRmpupdate && (Mode == ClearCBit)) {
+    Status = MemEncryptPvalidate (PhysicalAddress, EFI_SIZE_TO_PAGES (Length), MemOp);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    Pvalidate = FALSE;
+  }
+
+  //
+  // Save the value we need it later during the RMPUPDATE
+  //
+  OrigPhysicalAddress = PhysicalAddress;
+  OrigLength = Length;
 
   while (Length)
   {
@@ -811,6 +863,14 @@ SetMemoryEncDec (
   // Flush TLB
   //
   CpuFlushTlb();
+
+  //
+  // Validate the updated memory range
+  //
+  if (NeedRmpupdate) {
+    Status = MemEncryptRmpupdate (OrigPhysicalAddress,
+                    EFI_SIZE_TO_PAGES (OrigLength), MemOp, Pvalidate);
+  }
 
 Done:
   //
