@@ -33,6 +33,7 @@
   MemoryAllocationLib
   PcdLib
   UefiDriverEntryPoint
+  BaseMemEncryptPageValidateLib
 
 [Depex]
   TRUE

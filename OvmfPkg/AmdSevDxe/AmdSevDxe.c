@@ -16,6 +16,7 @@
 #include <Library/DxeServicesTableLib.h>
 #include <Library/MemEncryptSevLib.h>
 #include <Library/MemoryAllocationLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
 #include <Library/PcdLib.h>
 
 EFI_STATUS
@@ -59,6 +60,20 @@ AmdSevDxeEntryPoint (
                    FALSE
                    );
         ASSERT_EFI_ERROR (Status);
+      }
+
+      //
+      // >= SIZE_4GB System RAM was not validated during the PEI/SEC phase.
+      // Now its time to validate it.
+      //
+      if (MemEncryptSevSnpIsEnabled () &&
+          (Desc->GcdMemoryType == EfiGcdMemoryTypeSystemMemory) &&
+          (Desc->BaseAddress >= SIZE_4GB)) {
+        DEBUG ((EFI_D_INFO, "Validate Address 0x%Lx Length 0x%Lx\n",
+              Desc->BaseAddress, Desc->Length));
+        Status = MemEncryptRmpupdate (Desc->BaseAddress,
+                    EFI_SIZE_TO_PAGES (Desc->Length), MemoryTypePrivate, TRUE);
+        ASSERT_RETURN_ERROR (Status);
       }
     }
 

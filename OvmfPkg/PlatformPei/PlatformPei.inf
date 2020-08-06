@@ -114,6 +114,8 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedStart
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedEnd
 
 [FixedPcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress

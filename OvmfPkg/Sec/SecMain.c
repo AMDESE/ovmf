@@ -372,6 +372,32 @@ DecompressMemFvs (
     return Status;
   }
 
+  if (SevSnpIsEnabled ()) {
+    EFI_PHYSICAL_ADDRESS    LaunchValidatedBase, LaunchValidatedEnd;
+    UINTN                   Size;
+
+    //
+    // The VMM launch sequence should have validated the memory range from
+    // ValidateBase to ValidateEnd. Until now that it sufficent to execute
+    // the code but before we proceed further lets validate the memory used
+    // to enter into the PEI phase.
+    //
+    LaunchValidatedBase =
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedStart);
+
+    LaunchValidatedEnd = LaunchValidatedBase +
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedEnd);
+
+    Size = PcdGet32 (PcdOvmfDecompressionScratchEnd) - LaunchValidatedEnd;
+
+    DEBUG ((EFI_D_INFO, "%a: Validate 0x%Lx - 0x%Lx\n", __FUNCTION__,
+      LaunchValidatedEnd, LaunchValidatedEnd + Size));
+
+    Status = MemEncryptRmpupdate (LaunchValidatedEnd,
+                EFI_SIZE_TO_PAGES (Size), MemoryTypePrivate, TRUE);
+    ASSERT_EFI_ERROR (Status);
+  }
+
   OutputBuffer = (VOID*) ((UINT8*)(UINTN) PcdGet32 (PcdOvmfDxeMemFvBase) + SIZE_1MB);
   ScratchBuffer = ALIGN_POINTER ((UINT8*) OutputBuffer + OutputBufferSize, SIZE_1MB);
 

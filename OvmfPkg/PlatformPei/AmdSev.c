@@ -14,6 +14,7 @@
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/MemEncryptSevLib.h>
+#include <Library/MemEncryptPageValidateLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <PiPei.h>
@@ -24,6 +25,105 @@
 
 #include "Platform.h"
 
+/**
+ Function validates the RAM region, while valiating it skips the memory ranges
+ validated through the SEC phase.
+
+ **/
+STATIC
+VOID
+AmdSevSnpVaildateSystemRam (
+  EFI_PHYSICAL_ADDRESS      BaseAddress,
+  UINTN                     Length
+  )
+{
+  EFI_PHYSICAL_ADDRESS      EndAddress, NextAddress;
+  EFI_PHYSICAL_ADDRESS      ValidatedBase, ValidatedEnd;
+  UINTN                     NumPages, SkipPages;
+  EFI_STATUS                Status;
+
+  //
+  // The initial page table can address upto 4GB, if address is above the
+  // 4GB then do not validate it here, those ranges will get validated
+  // by the AmdSevDxe driver.
+  //
+  if (BaseAddress >= SIZE_4GB) {
+    return;
+  }
+
+  EndAddress = BaseAddress + Length;
+
+  for (; BaseAddress < EndAddress; BaseAddress = NextAddress) {
+
+    SkipPages = 0;
+    NumPages = EFI_SIZE_TO_PAGES (EndAddress - BaseAddress);
+
+    //
+    // The VMM launch sequence should have validated the memory range from
+    // LaunchValidateBase to LaunchValidateEnd and SecMain.c should have
+    // validated from LaunchValidateEnd to PcdOvmfDecompressionScratchEnd.
+    //
+    // Lets skip the range of memory which are already validated.
+    //
+    ValidatedBase =
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedStart);
+    ValidatedEnd = 
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfDecompressionScratchEnd);
+
+    if (BaseAddress <= ValidatedEnd && ValidatedBase <= EndAddress) {
+      if (BaseAddress < ValidatedBase) {
+        NumPages = EFI_SIZE_TO_PAGES(ValidatedBase - BaseAddress);
+      } else if (BaseAddress == ValidatedBase) {
+        BaseAddress = ValidatedEnd;
+        NumPages = EFI_SIZE_TO_PAGES (EndAddress - ValidatedEnd);
+        SkipPages =  EFI_SIZE_TO_PAGES (ValidatedEnd - ValidatedBase);
+      }
+    }
+
+    //
+    // Validate the memory range
+    //
+    DEBUG ((EFI_D_INFO, "%a: Validate 0x%Lx - 0x%Lx\n", __FUNCTION__,
+      BaseAddress, BaseAddress + EFI_PAGES_TO_SIZE(NumPages)));
+    Status = MemEncryptRmpupdate (BaseAddress, NumPages, MemoryTypePrivate, TRUE);
+    ASSERT_RETURN_ERROR (Status);
+    NextAddress = BaseAddress + EFI_PAGES_TO_SIZE (NumPages + SkipPages);
+  }
+}
+
+/**
+
+  Initialize SEV-ES support if running as an SEV-ES guest.
+
+  **/
+STATIC
+VOID
+AmdSevSnpInitialize (
+  VOID
+  )
+{
+  EFI_PEI_HOB_POINTERS          Hob;
+  EFI_HOB_RESOURCE_DESCRIPTOR   *ResourceHob;
+
+  if (!MemEncryptSevSnpIsEnabled ()) {
+    return;
+  }
+
+  DEBUG ((EFI_D_INFO, "SEV-SNP is enabled.\n"));
+
+  //
+  // Iterate through the system RAM and validate it.
+  //
+  for (Hob.Raw = GetHobList (); !END_OF_HOB_LIST (Hob); Hob.Raw = GET_NEXT_HOB (Hob)) {
+    if (Hob.Raw != NULL && GET_HOB_TYPE (Hob) == EFI_HOB_TYPE_RESOURCE_DESCRIPTOR) {
+      ResourceHob = Hob.ResourceDescriptor;
+
+      if (ResourceHob->ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) {
+        AmdSevSnpVaildateSystemRam (ResourceHob->PhysicalStart, ResourceHob->ResourceLength);
+      }
+    }
+  }
+}
 /**
 
   Initialize SEV-ES support if running as an SEV-ES guest.
@@ -189,7 +289,13 @@ AmdSevInitialize (
   }
 
   //
+  // Check and perform SEV-SNP initialization if required.
+  //
+  AmdSevSnpInitialize ();
+
+  //
   // Check and perform SEV-ES initialization if required.
   //
   AmdSevEsInitialize ();
+
 }
