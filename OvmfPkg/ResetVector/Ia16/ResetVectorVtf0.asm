@@ -34,8 +34,10 @@ ALIGN   16
 ;   and SEV_SNP_CPUID_PAGE. A VMM will locate this information through a
 ;   GUID.
 ;
-TIMES (48 - (sevEsResetBlockEnd - sevSnpBootBlockStart)) DB 0
+TIMES (64 - (sevEsResetBlockEnd - sevSnpBootBlockStart)) DB 0
 sevSnpBootBlockStart:
+    DD      SEV_SNP_LAUNCH_VALIDATED_END
+    DD      SEV_SNP_LAUNCH_VALIDATED_START
     DD      SEV_SNP_CPUID_PAGE
     DD      SEV_SNP_SECRET_PAGE
     DW      sevSnpBootBlockEnd - sevSnpBootBlockStart

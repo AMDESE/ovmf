@@ -102,7 +102,14 @@ FV = PEIFV
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDxeMemFvBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDxeMemFvSize
 FV = DXEFV
 
-################################################################################
+##############################################################################
+#
+# The range of the pages validated through the SEV-SNP launch sequence.
+#
+SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedStart = $(MEMFD_BASE_ADDRESS)
+SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedEnd = gUefiOvmfPkgTokenSpaceGuid.PcdOvmfPeiMemFvBase
+
+###############################################################################
 
 [FV.SECFV]
 FvNameGuid         = 763BED0D-DE9F-48F5-81F1-3E90E1B1A015
