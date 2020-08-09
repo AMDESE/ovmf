@@ -37,6 +37,10 @@
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbPageTableSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase

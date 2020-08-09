@@ -26,6 +26,24 @@ ALIGN   16
 %endif
 
 ;
+; SEV-SNP boot support
+;
+; sevSnpBlock:
+;   For the initial boot of SEV-SNP guest, a secret and cpuid page must be
+;   reserved by the BIOS at a RAM area defined by the SEV_SNP_SECRET_PAGE
+;   and SEV_SNP_CPUID_PAGE. A VMM will locate this information through a
+;   GUID.
+;
+TIMES (48 - (sevEsResetBlockEnd - sevSnpBootBlockStart)) DB 0
+sevSnpBootBlockStart:
+    DD      SEV_SNP_CPUID_PAGE
+    DD      SEV_SNP_SECRET_PAGE
+    DW      sevSnpBootBlockEnd - sevSnpBootBlockStart
+    DB      0xC2, 0xC0, 0x39, 0xBD, 0x8e, 0x2F, 0x43, 0x42
+    DB      0x83, 0xE8, 0x1B, 0x74, 0xCE, 0xBC, 0xB7, 0xD9
+sevSnpBootBlockEnd:
+
+;
 ; SEV-ES Processor Reset support
 ;
 ; sevEsResetBlock:
@@ -47,9 +65,6 @@ ALIGN   16
 ;   form the full CS segment base for the CS segment register. It would then
 ;   program the EIP register with the IP value as read.
 ;
-
-TIMES (32 - (sevEsResetBlockEnd - sevEsResetBlockStart)) DB 0
-
 sevEsResetBlockStart:
     DD      SEV_ES_AP_RESET_IP
     DW      sevEsResetBlockEnd - sevEsResetBlockStart
