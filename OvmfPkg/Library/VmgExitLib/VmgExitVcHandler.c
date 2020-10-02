@@ -153,7 +153,7 @@ STATIC
 BOOLEAN
 GhcbIsRegValid (
   IN GHCB                *Ghcb,
-  IN GHCB_REGISTER       Reg
+  IN GHCB_QWORD_OFFSET   Reg
   )
 {
   UINT32  RegIndex;
@@ -179,7 +179,7 @@ STATIC
 VOID
 GhcbSetRegValid (
   IN OUT GHCB                *Ghcb,
-  IN     GHCB_REGISTER       Reg
+  IN     GHCB_QWORD_OFFSET   Reg
   )
 {
   UINT32  RegIndex;

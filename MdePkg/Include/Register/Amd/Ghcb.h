@@ -82,50 +82,25 @@
 #define IOIO_SEG_DS         (BIT11 | BIT10)
 
 
-typedef enum {
-  GhcbCpl              = 25,
-  GhcbRflags           = 46,
-  GhcbRip,
-  GhcbRsp              = 59,
-  GhcbRax              = 63,
-  GhcbRcx              = 97,
-  GhcbRdx,
-  GhcbRbx,
-  GhcbRbp              = 101,
-  GhcbRsi,
-  GhcbRdi,
-  GhcbR8,
-  GhcbR9,
-  GhcbR10,
-  GhcbR11,
-  GhcbR12,
-  GhcbR13,
-  GhcbR14,
-  GhcbR15,
-  GhcbXCr0             = 125,
-} GHCB_REGISTER;
-
 typedef PACKED struct {
   UINT8                  Reserved1[203];
   UINT8                  Cpl;
-  UINT8                  Reserved2[148];
-  UINT64                 Dr7;
-  UINT8                  Reserved3[144];
+  UINT8                  Reserved2[300];
   UINT64                 Rax;
-  UINT8                  Reserved4[264];
+  UINT8                  Reserved3[264];
   UINT64                 Rcx;
   UINT64                 Rdx;
   UINT64                 Rbx;
-  UINT8                  Reserved5[112];
+  UINT8                  Reserved4[112];
   UINT64                 SwExitCode;
   UINT64                 SwExitInfo1;
   UINT64                 SwExitInfo2;
   UINT64                 SwScratch;
-  UINT8                  Reserved6[56];
+  UINT8                  Reserved5[56];
   UINT64                 XCr0;
   UINT8                  ValidBitmap[16];
   UINT64                 X87StateGpa;
-  UINT8                  Reserved7[1016];
+  UINT8                  Reserved6[1016];
 } GHCB_SAVE_AREA;
 
 typedef PACKED struct {
@@ -135,6 +110,15 @@ typedef PACKED struct {
   UINT16                 ProtocolVersion;
   UINT32                 GhcbUsage;
 } GHCB;
+
+typedef enum {
+  GhcbCpl          = OFFSET_OF (GHCB, SaveArea.Cpl) / sizeof (UINT64),
+  GhcbRax          = OFFSET_OF (GHCB, SaveArea.Rax) / sizeof (UINT64),
+  GhcbRbx          = OFFSET_OF (GHCB, SaveArea.Rbx) / sizeof (UINT64),
+  GhcbRcx          = OFFSET_OF (GHCB, SaveArea.Rcx) / sizeof (UINT64),
+  GhcbRdx          = OFFSET_OF (GHCB, SaveArea.Rdx) / sizeof (UINT64),
+  GhcbXCr0         = OFFSET_OF (GHCB, SaveArea.XCr0) / sizeof (UINT64),
+} GHCB_QWORD_OFFSET;
 
 typedef union {
   struct {
