@@ -118,6 +118,10 @@ typedef enum {
   GhcbRcx          = OFFSET_OF (GHCB, SaveArea.Rcx) / sizeof (UINT64),
   GhcbRdx          = OFFSET_OF (GHCB, SaveArea.Rdx) / sizeof (UINT64),
   GhcbXCr0         = OFFSET_OF (GHCB, SaveArea.XCr0) / sizeof (UINT64),
+  GhcbSwExitCode   = OFFSET_OF (GHCB, SaveArea.SwExitCode) / sizeof (UINT64),
+  GhcbSwExitInfo1  = OFFSET_OF (GHCB, SaveArea.SwExitInfo1) / sizeof (UINT64),
+  GhcbSwExitInfo2  = OFFSET_OF (GHCB, SaveArea.SwExitInfo2) / sizeof (UINT64),
+  GhcbSwScratch    = OFFSET_OF (GHCB, SaveArea.SwScratch) / sizeof (UINT64),
 } GHCB_QWORD_OFFSET;
 
 typedef union {

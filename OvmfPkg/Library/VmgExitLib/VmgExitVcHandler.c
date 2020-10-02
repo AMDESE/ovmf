@@ -720,6 +720,7 @@ MmioExit (
     CopyMem (Ghcb->SharedBuffer, &InstructionData->Ext.RegData, Bytes);
 
     Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    GhcbSetRegValid (Ghcb, GhcbSwScratch);
     Status = VmgExit (Ghcb, SVM_EXIT_MMIO_WRITE, ExitInfo1, ExitInfo2);
     if (Status != 0) {
       return Status;
@@ -749,6 +750,7 @@ MmioExit (
     CopyMem (Ghcb->SharedBuffer, InstructionData->Immediate, Bytes);
 
     Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    GhcbSetRegValid (Ghcb, GhcbSwScratch);
     Status = VmgExit (Ghcb, SVM_EXIT_MMIO_WRITE, ExitInfo1, ExitInfo2);
     if (Status != 0) {
       return Status;
@@ -781,6 +783,7 @@ MmioExit (
     ExitInfo2 = Bytes;
 
     Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    GhcbSetRegValid (Ghcb, GhcbSwScratch);
     Status = VmgExit (Ghcb, SVM_EXIT_MMIO_READ, ExitInfo1, ExitInfo2);
     if (Status != 0) {
       return Status;
@@ -811,6 +814,7 @@ MmioExit (
     ExitInfo2 = Bytes;
 
     Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    GhcbSetRegValid (Ghcb, GhcbSwScratch);
     Status = VmgExit (Ghcb, SVM_EXIT_MMIO_READ, ExitInfo1, ExitInfo2);
     if (Status != 0) {
       return Status;
@@ -836,6 +840,7 @@ MmioExit (
     ExitInfo2 = Bytes;
 
     Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+    GhcbSetRegValid (Ghcb, GhcbSwScratch);
     Status = VmgExit (Ghcb, SVM_EXIT_MMIO_READ, ExitInfo1, ExitInfo2);
     if (Status != 0) {
       return Status;
@@ -1289,6 +1294,7 @@ IoioExit (
       }
 
       Ghcb->SaveArea.SwScratch = (UINT64) Ghcb->SharedBuffer;
+      GhcbSetRegValid (Ghcb, GhcbSwScratch);
       Status = VmgExit (Ghcb, SVM_EXIT_IOIO_PROT, ExitInfo1, ExitInfo2);
       if (Status != 0) {
         return Status;

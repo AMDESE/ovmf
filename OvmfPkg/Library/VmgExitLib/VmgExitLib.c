@@ -79,6 +79,32 @@ VmgExitErrorCheck (
 }
 
 /**
+  Marks a field at the specified offset as valid in the GHCB.
+
+  The ValidBitmap area represents the areas of the GHCB that have been marked
+  valid. Set the area of the GHCB at the specified offset as valid.
+
+  @param[in, out] Ghcb    Pointer to the Guest-Hypervisor Communication Block
+  @param[in] Offset       Offset in the GHCB to mark valid
+
+**/
+STATIC
+VOID
+GhcbSetOffsetValid (
+  IN OUT GHCB               *Ghcb,
+  IN     GHCB_QWORD_OFFSET  Offset
+  )
+{
+  UINT32  OffsetIndex;
+  UINT32  OffsetBit;
+
+  OffsetIndex = Offset / 8;
+  OffsetBit   = Offset & 0x07;
+
+  Ghcb->SaveArea.ValidBitmap[OffsetIndex] |= (1 << OffsetBit);
+}
+
+/**
   Perform VMGEXIT.
 
   Sets the necessary fields of the GHCB, invokes the VMGEXIT instruction and
@@ -109,6 +135,10 @@ VmgExit (
   Ghcb->SaveArea.SwExitCode = ExitCode;
   Ghcb->SaveArea.SwExitInfo1 = ExitInfo1;
   Ghcb->SaveArea.SwExitInfo2 = ExitInfo2;
+
+  GhcbSetOffsetValid (Ghcb, GhcbSwExitCode);
+  GhcbSetOffsetValid (Ghcb, GhcbSwExitInfo1);
+  GhcbSetOffsetValid (Ghcb, GhcbSwExitInfo2);
 
   //
   // Guest memory is used for the guest-hypervisor communication, so fence

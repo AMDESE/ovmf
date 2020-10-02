@@ -52,9 +52,14 @@ QemuFlashPtrWrite (
   if (MemEncryptSevEsIsEnabled ()) {
     MSR_SEV_ES_GHCB_REGISTER  Msr;
     GHCB                      *Ghcb;
+    UINT32                    ScratchIndex;
+    UINT32                    ScratchBit;
 
     Msr.GhcbPhysicalAddress = AsmReadMsr64 (MSR_SEV_ES_GHCB);
     Ghcb = Msr.Ghcb;
+
+    ScratchIndex = GhcbSwScratch / 8;
+    ScratchBit   = GhcbSwScratch & 0x07;
 
     //
     // Writing to flash is emulated by the hypervisor through the use of write
@@ -66,6 +71,7 @@ QemuFlashPtrWrite (
     VmgInit (Ghcb);
     Ghcb->SharedBuffer[0] = Value;
     Ghcb->SaveArea.SwScratch = (UINT64) (UINTN) Ghcb->SharedBuffer;
+    Ghcb->SaveArea.ValidBitmap[ScratchIndex] |= (1 << ScratchBit);
     VmgExit (Ghcb, SVM_EXIT_MMIO_WRITE, (UINT64) (UINTN) Ptr, 1);
     VmgDone (Ghcb);
   } else {
