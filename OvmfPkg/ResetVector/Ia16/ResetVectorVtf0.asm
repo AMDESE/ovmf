@@ -25,6 +25,7 @@ ALIGN   16
     TIMES (0x1000 - ($ - EndOfPageTables) - 0x20) DB 0
 %endif
 
+
 ;
 ; Padding to ensure first guid starts at 0xffffffd0
 ;
@@ -46,6 +47,25 @@ TIMES (15 - ((guidedStructureEnd - guidedStructureStart + 15) % 16)) DB 0
 ; the table.
 ;
 guidedStructureStart:
+
+;
+; SEV-SNP boot support
+;
+; sevSnpBlock:
+;   For the initial boot of SEV-SNP guest, a secret and cpuid page must be
+;   reserved by the BIOS at a RAM area defined by the SEV_SNP_SECRET_PAGE
+;   and SEV_SNP_CPUID_PAGE. A VMM will locate this information through a
+;   GUID.
+;
+; GUID (Snp boot block): bd39c0c2-2f8e-4243-83e8-1b74cebcb7d9
+;
+sevSnpBootBlockStart:
+    DD      SEV_SNP_CPUID_PAGE
+    DD      SEV_SNP_SECRET_PAGE
+    DW      sevSnpBootBlockEnd - sevSnpBootBlockStart
+    DB      0xC2, 0xC0, 0x39, 0xBD, 0x8e, 0x2F, 0x43, 0x42
+    DB      0x83, 0xE8, 0x1B, 0x74, 0xCE, 0xBC, 0xB7, 0xD9
+sevSnpBootBlockEnd:
 
 ;
 ; SEV Secret block
