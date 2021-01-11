@@ -71,6 +71,8 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdGuidedExtractHandlerTableSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDecompressionScratchEnd
   gEfiMdeModulePkgTokenSpaceGuid.PcdInitValueInTempStack
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedStart
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedEnd
 
 [FeaturePcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdSmmSmramRequire

@@ -382,6 +382,29 @@ DecompressMemFvs (
     return Status;
   }
 
+  if (SevSnpIsEnabled ()) {
+    EFI_PHYSICAL_ADDRESS    LaunchValidatedBase, LaunchValidatedEnd;
+    UINTN                   Size;
+
+    //
+    // The VMM launch sequence should have validated the memory range from
+    // ValidateBase to ValidateEnd. Until now that was sufficent to execute
+    // the code but before we proceed further lets validate the memory used
+    // to enter into the PEI phase.
+    //
+    LaunchValidatedBase =
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedStart);
+
+    LaunchValidatedEnd = LaunchValidatedBase +
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedEnd);
+
+    Size = PcdGet32 (PcdOvmfDecompressionScratchEnd) - LaunchValidatedEnd;
+
+    Status = MemEncryptSnpSetPageState (LaunchValidatedEnd,
+                EFI_SIZE_TO_PAGES (Size), MemoryTypePrivate, TRUE);
+    ASSERT_EFI_ERROR (Status);
+  }
+
   Status = ExtractGuidedSectionGetInfo (
              Section,
              &OutputBufferSize,
@@ -402,6 +425,7 @@ DecompressMemFvs (
     PcdGet32 (PcdOvmfDecompressionScratchEnd)));
   ASSERT ((UINTN)ScratchBuffer + ScratchBufferSize ==
     PcdGet32 (PcdOvmfDecompressionScratchEnd));
+
 
   Status = ExtractGuidedSectionDecode (
              Section,
@@ -828,6 +852,15 @@ SevEsProtocolCheck (
     // SEV-SNP guest requires that GHCB GPA must be registered before using it.
     //
     Status = GhcbGPARegister (FixedPcdGet32 (PcdOvmfSecGhcbBase));
+    if (EFI_ERROR (Status)) {
+      SevEsProtocolFailure (GHCB_TERMINATE_GHCB_GENERAL);
+    }
+
+    //
+    // The GHCB must be mapped shared, request the SNP page state change
+    //
+    Status = MemEncryptSnpSetPageState (FixedPcdGet32 (PcdOvmfSecGhcbBase),
+                                        1, MemoryTypeShared, FALSE);
     if (EFI_ERROR (Status)) {
       SevEsProtocolFailure (GHCB_TERMINATE_GHCB_GENERAL);
     }
