@@ -190,7 +190,7 @@ Releaselock:
     jne        CProcedureInvoke
 
     ;
-    ; program GHCB
+    ; Calculate GHCB
     ;   Each page after the GHCB is a per-CPU page, so the calculation programs
     ;   a GHCB to be every 8KB.
     ;
@@ -204,8 +204,51 @@ Releaselock:
     mov        rdx, rax
     shr        rdx, 32
     mov        rcx, 0xc0010130
+
+    ;
+    ; Register GHCB GPA when SEV-SNP is enabled
+    ;
+    lea        edi, [esi + SevSnpIsEnabledLocation]
+    cmp        byte [edi], 1        ; SevSnpIsEnabled
+    jne        SetGhcbAddress
+    push       rdi
+    push       rsi
+    mov        edi, eax
+    mov        esi, edx
+    or         eax, 18              ; Ghcb registration request
+    wrmsr
+    rep vmmcall
+    rdmsr
+    mov        r12, rax
+    and        r12, 0fffh
+    cmp        r12, 19              ; Ghcb registration response
+    jne        GhcbGpaRegisterFailure
+
+    ; Verify that GPA is not changed
+    and        eax, 0fffff000h
+    cmp        edi, eax
+    jne        GhcbGpaRegisterFailure
+    cmp        esi, edx
+    jne        GhcbGpaRegisterFailure
+    pop        rsi
+    pop        rdi
+
+    ;
+    ; Program GHCB
+    ;
+SetGhcbAddress:
     wrmsr
     jmp        CProcedureInvoke
+
+    ;
+    ; Request the guest termination
+    ;
+GhcbGpaRegisterFailure:
+    xor        edx, edx
+    mov        eax, 256             ; GHCB terminate
+    wrmsr
+    rep vmmcall
+    hlt
 
 GetApicId:
     lea        edi, [esi + SevEsIsEnabledLocation]

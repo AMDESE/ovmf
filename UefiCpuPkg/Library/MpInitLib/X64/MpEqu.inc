@@ -42,4 +42,5 @@ ModeHighMemoryLocation              equ  LockLocation + 9Ah
 ModeHighSegmentLocation             equ  LockLocation + 9Eh
 Enable5LevelPagingLocation          equ  LockLocation + 0A0h
 SevEsIsEnabledLocation              equ  LockLocation + 0A1h
-GhcbBaseLocation                    equ  LockLocation + 0A2h
+SevSnpIsEnabledLocation             equ  LockLocation + 0A2h
+GhcbBaseLocation                    equ  LockLocation + 0A3h

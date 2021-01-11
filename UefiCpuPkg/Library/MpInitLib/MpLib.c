@@ -1042,6 +1042,7 @@ FillExchangeInfoData (
   DEBUG ((DEBUG_INFO, "%a: 5-Level Paging = %d\n", gEfiCallerBaseName, ExchangeInfo->Enable5LevelPaging));
 
   ExchangeInfo->SevEsIsEnabled  = CpuMpData->SevEsIsEnabled;
+  ExchangeInfo->SevSnpIsEnabled  = CpuMpData->SevSnpIsEnabled;
   ExchangeInfo->GhcbBase        = (UINTN) CpuMpData->GhcbBase;
 
   //
@@ -2018,6 +2019,7 @@ MpInitLibInitialize (
   CpuMpData->CpuInfoInHob     = (UINT64) (UINTN) (CpuMpData->CpuData + MaxLogicalProcessorNumber);
   InitializeSpinLock(&CpuMpData->MpLock);
   CpuMpData->SevEsIsEnabled = PcdGetBool (PcdSevEsIsEnabled);
+  CpuMpData->SevSnpIsEnabled = PcdGetBool (PcdSevSnpIsEnabled);
   CpuMpData->SevEsAPBuffer  = (UINTN) -1;
   CpuMpData->GhcbBase       = PcdGet64 (PcdGhcbBase);
 
