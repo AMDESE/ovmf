@@ -151,10 +151,14 @@ AmdSevSnpInitialize (
 {
   EFI_PEI_HOB_POINTERS          Hob;
   EFI_HOB_RESOURCE_DESCRIPTOR   *ResourceHob;
+  RETURN_STATUS                 PcdStatus;
 
   if (!MemEncryptSevSnpIsEnabled ()) {
     return;
   }
+
+  PcdStatus = PcdSetBoolS (PcdSevSnpIsEnabled, TRUE);
+  ASSERT_RETURN_ERROR (PcdStatus);
 
   DEBUG ((EFI_D_INFO, "SEV-SNP is enabled.\n"));
 
