@@ -37,6 +37,15 @@ typedef struct {
 } SEV_ES_PER_CPU_DATA;
 
 //
+// SNP_PAGE_STATE range
+//
+typedef struct {
+  UINT64      Start;
+  UINT64      End;
+  BOOLEAN     Validated;
+} SNP_PAGE_STATE_RANGE;
+
+//
 // Internal structure for holding SEV-ES information needed during SEC phase
 // and valid only during SEC phase and early PEI during platform
 // initialization.
@@ -54,6 +63,11 @@ typedef struct _SEC_SEV_ES_WORK_AREA {
   UINT64   RandomData;
 
   UINT64   EncryptionMask;
+
+  UINT8    NumSnpPageStateRanges;
+
+  // This fields must be at the end of the structure;
+  SNP_PAGE_STATE_RANGE SnpPageStateRanges[];
 } SEC_SEV_ES_WORK_AREA;
 
 //
