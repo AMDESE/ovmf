@@ -17,6 +17,7 @@
 #include <Register/Cpuid.h>
 
 #include "VirtualMemory.h"
+#include "MemEncryptSnpPageState.h"
 
 STATIC BOOLEAN mAddressEncMaskChecked = FALSE;
 STATIC UINT64  mAddressEncMask;
@@ -588,6 +589,7 @@ InternalMemEncryptSevCreateIdentityMap1G (
     DisableReadOnlyPageWriteProtect ();
   }
 
+
   Status = EFI_SUCCESS;
 
   while (Length)
@@ -706,22 +708,42 @@ SetMemoryEncDec (
   UINT64                         AddressEncMask;
   BOOLEAN                        IsWpEnabled;
   RETURN_STATUS                  Status;
+  BOOLEAN                        NeedPageStateChange, PValidate;
+  MEM_OP_REQ                     MemOp;
+  PHYSICAL_ADDRESS               OrigPhysicalAddress;
+  UINTN                          OrigLength;
 
   //
   // Set PageMapLevel4Entry to suppress incorrect compiler/analyzer warnings.
   //
   PageMapLevel4Entry = NULL;
 
+  //
+  // If SNP is enabled then we need to change the page state when setting or clearing
+  // the C-bit.
+  //
+  NeedPageStateChange = MemEncryptSevSnpIsEnabled ();
+
+  //
+  // The CacheFlush == FALSE  hints that its an MMIO address for which we need to clear the
+  // C-bit. The MMIO memory ranges are outside the guest space and we do need to make any
+  // page state changes for those ranges.
+  //
+  if ((Mode == ClearCBit) && (CacheFlush == FALSE)) {
+    NeedPageStateChange = FALSE;
+  }
+
   DEBUG ((
     DEBUG_VERBOSE,
-    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u\n",
+    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u Rmp=%u\n",
     gEfiCallerBaseName,
     __FUNCTION__,
     Cr3BaseAddress,
     PhysicalAddress,
     (UINT64)Length,
     (Mode == SetCBit) ? "Encrypt" : "Decrypt",
-    (UINT32)CacheFlush
+    (UINT32)CacheFlush,
+    (UINT32)NeedPageStateChange
     ));
 
   //
@@ -755,6 +777,37 @@ SetMemoryEncDec (
     DisableReadOnlyPageWriteProtect ();
   }
 
+  //
+  // Convert mode to Memory Type
+  //
+  if (Mode == ClearCBit) {
+    MemOp = MemoryTypeShared;
+  } else {
+    MemOp = MemoryTypePrivate;
+  }
+
+  // While changing the page state we must validate the memory range.
+  PValidate = TRUE;
+
+  //
+  // If we are going to clear the Cbit then validate the pages before
+  // we clear the C-bit on them.
+  //
+  if (NeedPageStateChange && (Mode == ClearCBit)) {
+    Status = MemEncryptPvalidate (PhysicalAddress, EFI_SIZE_TO_PAGES (Length), MemOp);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    // Validation for this range is completed.
+    PValidate = FALSE;
+  }
+
+  //
+  // Save the value we need it later during the Page state change.
+  //
+  OrigPhysicalAddress = PhysicalAddress;
+  OrigLength = Length;
   Status = EFI_SUCCESS;
 
   while (Length != 0)
@@ -928,6 +981,15 @@ SetMemoryEncDec (
   // Flush TLB
   //
   CpuFlushTlb();
+
+  //
+  // Now that C-bit is changed in the page table, transition the page state in then
+  // RMP table.
+  //
+  if (NeedPageStateChange) {
+    Status = MemEncryptSnpSetPageState (OrigPhysicalAddress,
+                    EFI_SIZE_TO_PAGES (OrigLength), MemOp, PValidate);
+  }
 
 Done:
   //
