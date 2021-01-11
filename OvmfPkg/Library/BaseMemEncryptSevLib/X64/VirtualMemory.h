@@ -267,4 +267,21 @@ InternalMemEncryptSevGetAddressRangeState (
   IN UINTN                    Length
   );
 
+/**
+  Create 1GB identity mapping for the specified virtual address range.
+
+  @param[in]  Cr3BaseAddress          Cr3 Base Address (if zero then use
+                                      current CR3)
+  @param[in]  VirtualAddress          Virtual address to check
+  @param[in]  Length                  Length of virtual address range
+
+**/
+RETURN_STATUS
+EFIAPI
+InternalMemEncryptSevCreateIdentityMap1G (
+  IN    PHYSICAL_ADDRESS      Cr3BaseAddress,
+  IN    PHYSICAL_ADDRESS      PhysicalAddress,
+  IN    UINTN                 Length
+  );
+
 #endif
