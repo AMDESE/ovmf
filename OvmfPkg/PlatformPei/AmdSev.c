@@ -14,6 +14,7 @@
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
 #include <Library/MemEncryptSevLib.h>
+#include <Library/GhcbRegisterLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <PiPei.h>
@@ -41,7 +42,7 @@ AmdSevEsInitialize (
   UINTN                GhcbBackupPageCount;
   SEV_ES_PER_CPU_DATA  *SevEsData;
   UINTN                PageCount;
-  RETURN_STATUS        PcdStatus, DecryptStatus;
+  RETURN_STATUS        PcdStatus, DecryptStatus, Status;
   IA32_DESCRIPTOR      Gdtr;
   VOID                 *Gdt;
 
@@ -109,6 +110,14 @@ AmdSevEsInitialize (
   DEBUG ((DEBUG_INFO,
     "SEV-ES is enabled, %lu GHCB backup pages allocated starting at 0x%p\n",
     (UINT64)GhcbBackupPageCount, GhcbBackupBase));
+
+  if (MemEncryptSevSnpIsEnabled ()) {
+    //
+    // SEV-SNP guest requires that GHCB GPA must be registered before using it.
+    //
+    Status = GhcbGPARegister (GhcbBasePa);
+    ASSERT_RETURN_ERROR (Status);
+  }
 
   AsmWriteMsr64 (MSR_SEV_ES_GHCB, GhcbBasePa);
 

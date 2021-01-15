@@ -51,6 +51,7 @@
   ExtractGuidedSectionLib
   LocalApicLib
   CpuExceptionHandlerLib
+  GhcbRegisterLib
 
 [Ppis]
   gEfiTemporaryRamSupportPpiGuid                # PPI ALWAYS_PRODUCED

@@ -27,6 +27,7 @@
 #include <Library/LocalApicLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
 #include <Library/MemEncryptSevLib.h>
+#include <Library/GhcbRegisterLib.h>
 #include <Register/Amd/Ghcb.h>
 #include <Register/Amd/Msr.h>
 
@@ -81,6 +82,36 @@ IA32_IDT_GATE_DESCRIPTOR  mIdtEntryTemplate = {
     0xffff                               // OffsetHigh
   }
 };
+
+/**
+  Determine if SEV-SNP is active.
+
+  During early booting, SEV-SNP support code will set a flag to indicate that
+  SEV-SNP is enabled. Return the value of this flag as an indicator that SEV-SNP
+  is enabled.
+
+  @retval TRUE   SEV-SNP is enabled
+  @retval FALSE  SEV-SNP is not enabled
+
+**/
+STATIC
+BOOLEAN
+SevSnpIsEnabled (
+  VOID
+  )
+{
+  MSR_SEV_STATUS_REGISTER           Msr;
+
+  //
+  // Check MSR_0xC0010131 Bit 2 (Snp Enabled)
+  //
+  Msr.Uint32 = AsmReadMsr32 (MSR_SEV_STATUS);
+  if (Msr.Bits.SevSnpBit) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
 
 /**
   Locates the main boot firmware volume.
@@ -765,6 +796,7 @@ SevEsProtocolCheck (
 {
   MSR_SEV_ES_GHCB_REGISTER  Msr;
   GHCB                      *Ghcb;
+  EFI_STATUS                Status;
 
   //
   // Use the GHCB MSR Protocol to obtain the GHCB SEV-ES Information for
@@ -791,6 +823,15 @@ SevEsProtocolCheck (
     SevEsProtocolFailure (GHCB_TERMINATE_GHCB_PROTOCOL);
   }
 
+  if (SevSnpIsEnabled ()) {
+    //
+    // SEV-SNP guest requires that GHCB GPA must be registered before using it.
+    //
+    Status = GhcbGPARegister (FixedPcdGet32 (PcdOvmfSecGhcbBase));
+    if (EFI_ERROR (Status)) {
+      SevEsProtocolFailure (GHCB_TERMINATE_GHCB_GENERAL);
+    }
+  }
   //
   // SEV-ES protocol checking succeeded, set the initial GHCB address
   //
