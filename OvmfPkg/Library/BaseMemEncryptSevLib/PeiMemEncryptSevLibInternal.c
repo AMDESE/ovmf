@@ -17,6 +17,8 @@
 #include <Register/Cpuid.h>
 #include <Uefi/UefiBaseType.h>
 
+#include "MemEncryptSnpPageState.h"
+
 STATIC BOOLEAN mSevStatus = FALSE;
 STATIC BOOLEAN mSevEsStatus = FALSE;
 STATIC BOOLEAN mSevSnpStatus = FALSE;
@@ -183,4 +185,160 @@ MemEncryptSevGetEncryptionMask (
   }
 
   return mSevEncryptionMask;
+}
+
+/**
+ This function issues the PVALIDATE instruction for the memory range specified
+ in the BaseAddress and NumPages.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+  @return RETURN_SECRITY_VIOLATION    Pvalidate instruction failed.
+  */
+RETURN_STATUS
+EFIAPI
+MemEncryptPvalidate (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type
+  )
+{
+  return PvalidateInternal (BaseAddress, NumPages, Type);
+}
+
+STATIC
+RETURN_STATUS
+InternalMemEncryptSnpSetPageState (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type,
+  IN BOOLEAN                  Pvalidate
+  )
+{
+  EFI_STATUS                  Status;
+
+  //
+  // If the page state need to be set to shared then first validate the memory
+  // range before requesting to page state change.
+  //
+  if (Pvalidate && (Type == MemoryTypeShared)) {
+    Status = MemEncryptPvalidate (BaseAddress, NumPages, Type);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+  }
+
+  //
+  // Request the page state change.
+  //
+  switch (Type) {
+    case MemoryTypePrivate:
+    case MemoryTypeShared:
+          Status = SetPageStateInternal (BaseAddress, NumPages, Type);
+          break;
+    default: return RETURN_UNSUPPORTED;
+  }
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  //
+  // Now that pages are added in the RMP table, validate it.
+  //
+  if (Pvalidate && (Type == MemoryTypePrivate)) {
+    Status = MemEncryptPvalidate (BaseAddress, NumPages, Type);
+  }
+
+  return Status;
+}
+
+/**
+  This function issues the page state change request for the memory region specified the
+  BaseAddress and NumPage. If Validate flags is trued then it also validates the memory
+  after changing the page state.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+  @param[in]  PValidate               Pvalidate the memory range
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+**/
+RETURN_STATUS
+EFIAPI
+MemEncryptSnpSetPageState (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type,
+  IN BOOLEAN                  Pvalidate
+  )
+{
+  EFI_STATUS                  Status;
+  SEC_SEV_ES_WORK_AREA       *SevEsWorkArea;
+  SNP_PAGE_STATE_RANGE       *Range;
+  PHYSICAL_ADDRESS            EndAddress;
+  UINTN                       Index;
+
+  EndAddress = BaseAddress + EFI_PAGES_TO_SIZE (NumPages);
+
+  //
+  // The page table used in PEI can address upto 4GB memory, if we are asked to validate
+  // a range outsie the 4GB then create an identity mapping so that PVALIDATE instruction
+  // can execute correctly. If the page table entry is not present then PVALIDATE will
+  // cause the #PF.
+  //
+  if (BaseAddress >= SIZE_4GB) {
+    Status = MemEncryptSevCreateIdentityMap1G (0, BaseAddress, EFI_PAGES_TO_SIZE (NumPages));
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+  }
+
+  SevEsWorkArea = (SEC_SEV_ES_WORK_AREA *) FixedPcdGet32 (PcdSevEsWorkAreaBase);
+  ASSERT (SevEsWorkArea->NumSnpPageStateRanges != 0);
+
+  //
+  // Skip the range already present in the SevEsWorkArea.
+  //
+  for (Index = 0; Index < SevEsWorkArea->NumSnpPageStateRanges; Index++) {
+    EFI_PHYSICAL_ADDRESS    Start, End;
+
+    Range = (SNP_PAGE_STATE_RANGE *)&SevEsWorkArea->SnpPageStateRanges[Index];
+
+    Start = MAX(Range->Start, BaseAddress);
+    End = MIN(Range->End, EndAddress);
+
+    //
+    // Does this range overlap with the previous validated ranges.
+    //
+    if (Start <= End) {
+      if (BaseAddress < Start) {
+        NumPages = EFI_SIZE_TO_PAGES (Start - BaseAddress);
+        Status = InternalMemEncryptSnpSetPageState (BaseAddress, NumPages, Type, Pvalidate);
+        if (EFI_ERROR (Status)) {
+          return Status;
+        }
+      }
+      BaseAddress = End;
+    }
+  }
+
+  if (BaseAddress < EndAddress) {
+    NumPages = EFI_SIZE_TO_PAGES (EndAddress - BaseAddress);
+    Status = InternalMemEncryptSnpSetPageState (BaseAddress, NumPages, Type, Pvalidate);
+  }
+
+  return Status;
 }

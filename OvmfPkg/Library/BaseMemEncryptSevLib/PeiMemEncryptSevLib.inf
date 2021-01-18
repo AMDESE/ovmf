@@ -32,6 +32,7 @@
 [Sources]
   PeiDxeMemEncryptSevLibInternal.c
   PeiMemEncryptSevLibInternal.c
+  MemEncryptSnpPageState.c
 
 [Sources.X64]
   X64/MemEncryptSevLib.c
@@ -49,6 +50,7 @@
   DebugLib
   MemoryAllocationLib
   PcdLib
+  VmgExitLib
 
 [FeaturePcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdSmmSmramRequire
