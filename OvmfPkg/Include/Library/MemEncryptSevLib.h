@@ -229,4 +229,59 @@ MemEncryptSevGetAddressRangeState (
   IN UINTN                    Length
   );
 
+
+typedef enum {
+  MemoryTypePrivate,
+  MemoryTypeShared,
+
+  MemoryTypeMax
+} MEM_OP_REQ;
+
+/**
+ This function issues the PVALIDATE instruction for the memory range specified
+ in the BaseAddress and NumPages.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+  @return RETURN_SECRITY_VIOLATION    Pvalidate instruction failed.
+  */
+RETURN_STATUS
+EFIAPI
+MemEncryptPvalidate (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type
+  );
+
+/**
+  This function issues the page state change request for the memory region specified in the
+  BaseAddress and NumPage. If Validate flags is trued then it also validates the memory
+  after changing the page state.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+  @param[in]  PValidate               Pvalidate the memory range
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+**/
+RETURN_STATUS
+EFIAPI
+MemEncryptSnpSetPageState (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type,
+  IN BOOLEAN                  Pvalidate
+  );
 #endif // _MEM_ENCRYPT_SEV_LIB_H_

@@ -15,6 +15,7 @@
   MODULE_TYPE                    = BASE
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = MemEncryptSevLib|SEC
+  CONSTRUCTOR                    = MemEncryptSevSecInit
 
 #
 # The following information is for reference only and not required by the build
@@ -31,6 +32,7 @@
 
 [Sources]
   SecMemEncryptSevLibInternal.c
+  MemEncryptSnpPageState.c
 
 [Sources.X64]
   X64/MemEncryptSevLib.c
@@ -49,3 +51,5 @@
 
 [FixedPcd]
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpLaunchValidatedEnd
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidBase
