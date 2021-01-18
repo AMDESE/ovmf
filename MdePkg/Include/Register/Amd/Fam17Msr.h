@@ -53,6 +53,19 @@ typedef union {
     UINT64 GuestFrameNumber:52;
   } GhcbGpaRegister;
 
+  struct {
+    UINT64 Function:12;
+    UINT64 GuestFrameNumber:40;
+    UINT64 Operation:4;
+    UINT64 Reserved:8;
+  } SnpPageStateChangeRequest;
+
+  struct {
+    UINT32 Function:12;
+    UINT32 Reserved:20;
+    UINT32 ErrorCode;
+  } SnpPageStateChangeResponse;
+
   VOID    *Ghcb;
 
   UINT64  GhcbPhysicalAddress;
@@ -64,6 +77,11 @@ typedef union {
 #define GHCB_INFO_CPUID_RESPONSE           5
 #define GHCB_INFO_GPA_REGISTER_REQUEST     18
 #define GHCB_INFO_GPA_REGISTER_RESPONSE    19
+
+#define GHCB_INFO_SNP_PAGE_STATE_CHANGE_REQUEST     20
+#define GHCB_INFO_SNP_PAGE_STATE_CHANGE_RESPONSE    21
+#define   SNP_PAGE_STATE_PRIVATE          1
+#define   SNP_PAGE_STATE_SHARED           2
 
 #define GHCB_INFO_TERMINATE_REQUEST        256
 

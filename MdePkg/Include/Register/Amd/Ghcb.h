@@ -49,12 +49,13 @@
 //
 // VMG Special Exit Codes
 //
-#define SVM_EXIT_MMIO_READ      0x80000001ULL
-#define SVM_EXIT_MMIO_WRITE     0x80000002ULL
-#define SVM_EXIT_NMI_COMPLETE   0x80000003ULL
-#define SVM_EXIT_AP_RESET_HOLD  0x80000004ULL
-#define SVM_EXIT_AP_JUMP_TABLE  0x80000005ULL
-#define SVM_EXIT_UNSUPPORTED    0x8000FFFFULL
+#define SVM_EXIT_MMIO_READ                0x80000001ULL
+#define SVM_EXIT_MMIO_WRITE               0x80000002ULL
+#define SVM_EXIT_NMI_COMPLETE             0x80000003ULL
+#define SVM_EXIT_AP_RESET_HOLD            0x80000004ULL
+#define SVM_EXIT_AP_JUMP_TABLE            0x80000005ULL
+#define SVM_EXIT_SNP_PAGE_STATE_CHANGE    0x80000010ULL
+#define SVM_EXIT_UNSUPPORTED              0x8000FFFFULL
 
 //
 // IOIO Exit Information
@@ -153,5 +154,31 @@ typedef union {
 #define GHCB_EVENT_INJECTION_TYPE_NMI        2
 #define GHCB_EVENT_INJECTION_TYPE_EXCEPTION  3
 #define GHCB_EVENT_INJECTION_TYPE_SOFT_INT   4
+
+#define SNP_PAGE_STATE_MAX_NPAGES           4095
+#define SNP_PAGE_STATE_MAX_ENTRY            253
+#define SNP_PAGE_STATE_PRIVATE              1
+#define SNP_PAGE_STATE_SHARED               2
+#define SNP_PAGE_STATE_PSMASH               3
+#define SNP_PAGE_STATE_UNSMASH              4
+
+typedef PACKED struct {
+  UINT64  CurrentPage:12;
+  UINT64  GuestFrameNumber:40;
+  UINT64  Op:4;
+  UINT64  PageSize:1;
+  UINT64  Rsvd: 7;
+} SNP_PAGE_STATE_ENTRY;
+
+typedef PACKED struct {
+  UINT16 CurrentEntry;
+  UINT16 EndEntry;
+  UINT32 Rsvd;
+} SNP_PAGE_STATE_HEADER;
+
+typedef struct {
+  SNP_PAGE_STATE_HEADER  Header;
+  SNP_PAGE_STATE_ENTRY   Entry[SNP_PAGE_STATE_MAX_ENTRY];
+} SNP_PAGE_STATE_CHANGE_INFO;
 
 #endif
