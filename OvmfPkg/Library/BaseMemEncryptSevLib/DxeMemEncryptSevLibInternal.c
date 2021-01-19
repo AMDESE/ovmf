@@ -17,6 +17,8 @@
 #include <Register/Cpuid.h>
 #include <Uefi/UefiBaseType.h>
 
+#include "MemEncryptSnpPageState.h"
+
 STATIC BOOLEAN mSevStatus = FALSE;
 STATIC BOOLEAN mSevEsStatus = FALSE;
 STATIC BOOLEAN mSevSnpStatus = FALSE;
@@ -169,4 +171,93 @@ MemEncryptSevGetEncryptionMask (
   }
 
   return mSevEncryptionMask;
+}
+
+/**
+ This function issues the PVALIDATE instruction for the memory range specified
+ in the BaseAddress and NumPages.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+  @return RETURN_SECRITY_VIOLATION    Pvalidate instruction failed.
+  */
+RETURN_STATUS
+EFIAPI
+MemEncryptPvalidate (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type
+  )
+{
+  return PvalidateInternal (BaseAddress, NumPages, Type);
+}
+
+/**
+  This function issues the page state change request for the memory region specified the
+  BaseAddress and NumPage. If Validate flags is trued then it also validates the memory
+  after changing the page state.
+
+  @param[in]  BaseAddress             The physical address that is the start
+                                      address of a memory region.
+  @param[in]  NumPages                The number of pages from start memory
+                                      region.
+  @param[in]  Type                    Memory operation command
+  @param[in]  PValidate               Pvalidate the memory range
+
+  @retval RETURN_SUCCESS              The attributes were cleared for the
+                                      memory region.
+  @retval RETURN_INVALID_PARAMETER    Number of pages is zero.
+**/
+RETURN_STATUS
+EFIAPI
+MemEncryptSnpSetPageState (
+  IN PHYSICAL_ADDRESS         BaseAddress,
+  IN UINTN                    NumPages,
+  IN MEM_OP_REQ               Type,
+  IN BOOLEAN                  Pvalidate
+  )
+{
+  EFI_STATUS                  Status;
+
+  //
+  // If the page state need to be set to shared then first validate the memory
+  // range before requesting to page state change.
+  //
+  if (Pvalidate && (Type == MemoryTypeShared)) {
+    Status = MemEncryptPvalidate (BaseAddress, NumPages, Type);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+  }
+
+  //
+  // Request the page state change.
+  //
+  switch (Type) {
+    case MemoryTypePrivate:
+    case MemoryTypeShared:
+          Status = SetPageStateInternal (BaseAddress, NumPages, Type);
+          break;
+    default: return RETURN_UNSUPPORTED;
+  }
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  //
+  // Now that pages are added in the RMP table, validate it.
+  //
+  if (Pvalidate && (Type == MemoryTypePrivate)) {
+    Status = MemEncryptPvalidate (BaseAddress, NumPages, Type);
+  }
+
+  return Status;
 }
