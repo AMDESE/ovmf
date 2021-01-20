@@ -14,7 +14,9 @@
 #include <Library/VmgExitLib.h>
 #include <Register/Amd/Msr.h>
 #include <Register/Intel/Cpuid.h>
+#include <IndustryStandard/Q35MchIch9.h>
 #include <IndustryStandard/InstructionParsing.h>
+#include <Library/PcdLib.h>
 
 #include "VmgExitVcHandler.h"
 
@@ -638,6 +640,17 @@ ValidateMmioMemory (
             );
   if (State == MemEncryptSevAddressRangeUnencrypted) {
     return 0;
+  }
+
+  //
+  // Allow MMCFG accessess (which will have the encryption bit set during
+  // SEC and PEI phases).
+  //
+  if (PcdGet16 (PcdOvmfHostBridgePciDevId) == INTEL_Q35_MCH_DEVICE_ID) {
+    Address = MemoryAddress & ~(SIZE_256MB - 1);
+    if (Address == FixedPcdGet64 (PcdPciExpressBaseAddress)) {
+      return 0;
+    }
   }
 
   //
