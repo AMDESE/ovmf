@@ -393,5 +393,11 @@
   # @Prompt SEV-ES Status
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled|FALSE|BOOLEAN|0x60000016
 
+  ## This dynamic PCD indicates whether SEV-SNP is enabled
+  #   TRUE  - SEV-SNP is enabled
+  #   FALSE - SEV-SNP is not enabled
+  # @Prompt SEV-SNP Status
+  gUefiCpuPkgTokenSpaceGuid.PcdSevSnpIsEnabled|FALSE|BOOLEAN|0x60000017
+
 [UserExtensions.TianoCore."ExtraFiles"]
   UefiCpuPkgExtra.uni
