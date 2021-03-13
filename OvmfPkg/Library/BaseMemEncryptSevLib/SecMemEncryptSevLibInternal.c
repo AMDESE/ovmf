@@ -17,6 +17,8 @@
 #include <Register/Cpuid.h>
 #include <Uefi/UefiBaseType.h>
 
+#include "SnpPageStateChange.h"
+
 /**
   Reads and sets the status of SEV features.
 
@@ -171,4 +173,22 @@ MemEncryptSevLocateInitialSmramSaveStateMapPages (
   )
 {
   return RETURN_UNSUPPORTED;
+}
+
+/**
+  If SEV-SNP is active then set the page state of the specified virtual
+  address range. This should be called in SEC and PEI phases only.
+
+  @param[in]  BaseAddress             Base address
+  @param[in]  NumPages                Number of pages starting from the base address
+
+**/
+VOID
+EFIAPI
+MemEncryptSevSnpValidateSystemRam (
+  IN PHYSICAL_ADDRESS                   BaseAddress,
+  IN UINTN                              NumPages
+  )
+{
+  SevSnpValidateSystemRam (BaseAddress, NumPages);
 }
