@@ -16,6 +16,7 @@
 
 #include "../SnpPageStateChange.h"
 #include "SnpPageStateTrack.h"
+#include "VirtualMemory.h"
 
 STATIC SNP_VALIDATED_RANGE     *mRootNode;
 
@@ -62,8 +63,23 @@ SevSnpValidateSystemRam (
 {
   UINTN                   EndAddress;
   SNP_VALIDATED_RANGE     *Range;
+  EFI_STATUS              Status;
 
   EndAddress = BaseAddress + EFI_PAGES_TO_SIZE (NumPages);
+
+  //
+  // The page table used in PEI can address up to 4GB memory. If we are asked to validate
+  // a range above the 4GB, then create an identity mapping so that the PVALIDATE instruction
+  // can execute correctly. If the page table entry is not present then PVALIDATE will
+  // cause the #GP.
+  //
+  if (BaseAddress >= SIZE_4GB) {
+    Status = InternalMemEncryptSevCreateIdentityMap1G (0, BaseAddress,
+                  EFI_PAGES_TO_SIZE (NumPages));
+    if (EFI_ERROR (Status)) {
+      ASSERT (FALSE);
+    }
+  }
 
   //
   // If the Root is NULL then its the first call. Lets initialize the List before
