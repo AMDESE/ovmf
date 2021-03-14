@@ -142,6 +142,42 @@ AmdSevEsInitialize (
 
 /**
 
+  Initialize SEV-SNP support if running as an SEV-SNP guest.
+
+  **/
+STATIC
+VOID
+AmdSevSnpInitialize (
+  VOID
+  )
+{
+  EFI_PEI_HOB_POINTERS          Hob;
+  EFI_HOB_RESOURCE_DESCRIPTOR   *ResourceHob;
+
+  if (!MemEncryptSevSnpIsEnabled ()) {
+    return;
+  }
+
+  DEBUG ((EFI_D_INFO, "SEV-SNP is enabled.\n"));
+
+  //
+  // Iterate through the system RAM and validate it.
+  //
+  for (Hob.Raw = GetHobList (); !END_OF_HOB_LIST (Hob); Hob.Raw = GET_NEXT_HOB (Hob)) {
+    if (Hob.Raw != NULL && GET_HOB_TYPE (Hob) == EFI_HOB_TYPE_RESOURCE_DESCRIPTOR) {
+      ResourceHob = Hob.ResourceDescriptor;
+
+      if (ResourceHob->ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) {
+        MemEncryptSevSnpValidateSystemRam (ResourceHob->PhysicalStart,
+                                           EFI_SIZE_TO_PAGES (ResourceHob->ResourceLength)
+                                          );
+      }
+    }
+  }
+}
+
+/**
+
   Function checks if SEV support is available, if present then it sets
   the dynamic PcdPteMemoryEncryptionAddressOrMask with memory encryption mask.
 
@@ -216,6 +252,11 @@ AmdSevInitialize (
         );
     }
   }
+
+  //
+  // Check and perform SEV-SNP initialization if required.
+  //
+  AmdSevSnpInitialize ();
 
   //
   // Check and perform SEV-ES initialization if required.
