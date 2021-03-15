@@ -18,8 +18,6 @@
 #include "SnpPageStateTrack.h"
 #include "VirtualMemory.h"
 
-STATIC SNP_VALIDATED_RANGE     *mRootNode;
-
 STATIC
 SNP_VALIDATED_RANGE *
 SetPageStateChangeInitialize (
@@ -64,15 +62,34 @@ SevSnpValidateSystemRam (
   UINTN                   EndAddress;
   SNP_VALIDATED_RANGE     *Range;
   EFI_STATUS              Status;
+  SEC_SEV_ES_WORK_AREA    *SevEsWorkArea;
+  SNP_VALIDATED_RANGE     *RootNode;
 
   EndAddress = BaseAddress + EFI_PAGES_TO_SIZE (NumPages);
+
+  // The Root of SNP_VALIDATED_RANGE is saved in the EsWorkArea.
+  SevEsWorkArea = (SEC_SEV_ES_WORK_AREA *) FixedPcdGet32 (PcdSevEsWorkAreaBase);
+  RootNode = (SNP_VALIDATED_RANGE *) SevEsWorkArea->SnpSystemRamValidatedRootAddress;
+
+  //
+  // If the Root is NULL then its the first call. Lets initialize the List before
+  // we process the request.
+  //
+  if (RootNode == NULL) {
+    RootNode = SetPageStateChangeInitialize ();
+
+    //
+    // Save the RootNode in the workarea
+    //
+    SevEsWorkArea->SnpSystemRamValidatedRootAddress = (UINT64) (UINTN) RootNode;
+  }
 
   //
   // The page table used in PEI can address up to 4GB memory. If we are asked to validate
   // a range above the 4GB, then create an identity mapping so that the PVALIDATE instruction
-  // can execute correctly. If the page table entry is not present then PVALIDATE will
-  // cause the #GP.
   //
+  //
+  
   if (BaseAddress >= SIZE_4GB) {
     Status = InternalMemEncryptSevCreateIdentityMap1G (0, BaseAddress,
                   EFI_PAGES_TO_SIZE (NumPages));
@@ -82,24 +99,15 @@ SevSnpValidateSystemRam (
   }
 
   //
-  // If the Root is NULL then its the first call. Lets initialize the List before
-  // we process the request.
-  //
-  if (mRootNode == NULL) {
-    mRootNode = SetPageStateChangeInitialize ();
-  }
-
-  //
   // Check if the range is already validated
   //
-  EndAddress = BaseAddress + EFI_PAGES_TO_SIZE(NumPages);
-  Range = FindOverlapRange (mRootNode, BaseAddress, EndAddress);
+  Range = FindOverlapRange (RootNode, BaseAddress, EndAddress);
 
   //
   // Range is not validated
   if (Range == NULL) {
     SetPageStateInternal (BaseAddress, NumPages, SevSnpPagePrivate, TRUE);
-    AddRangeToIntervalTree (mRootNode, BaseAddress, EndAddress);
+    AddRangeToIntervalTree (RootNode, BaseAddress, EndAddress);
     return;
   }
 
@@ -110,12 +118,12 @@ SevSnpValidateSystemRam (
   if (BaseAddress < Range->StartAddress) {
     NumPages = EFI_SIZE_TO_PAGES (Range->StartAddress - BaseAddress);
     SetPageStateInternal (BaseAddress, NumPages, SevSnpPagePrivate, TRUE);
-    AddRangeToIntervalTree (mRootNode, BaseAddress, Range->StartAddress);
+    AddRangeToIntervalTree (RootNode, BaseAddress, Range->StartAddress);
   }
 
   if (EndAddress > Range->EndAddress) {
     NumPages = EFI_SIZE_TO_PAGES (EndAddress - Range->EndAddress);
     SetPageStateInternal (Range->EndAddress, NumPages, SevSnpPagePrivate, TRUE);
-    AddRangeToIntervalTree (mRootNode, Range->StartAddress, EndAddress);
+    AddRangeToIntervalTree (RootNode, Range->StartAddress, EndAddress);
   }
 }
