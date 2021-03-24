@@ -14,7 +14,7 @@
 #include <Library/PcdLib.h>
 #include <Library/DebugLib.h>
 
-#include "PeiSnpPageStateChange.h"
+#include "../SnpPageStateChange.h"
 #include "SnpPageStateTrack.h"
 
 VOID
