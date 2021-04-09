@@ -32,10 +32,15 @@
 [Sources]
   PeiDxeMemEncryptSevLibInternal.c
   PeiMemEncryptSevLibInternal.c
+  SnpPageStateChange.h
 
 [Sources.X64]
   X64/MemEncryptSevLib.c
   X64/PeiDxeVirtualMemory.c
+  X64/PeiSnpSystemRamValidate.c
+  X64/SnpPageStateTrack.c
+  X64/SnpPageStateChangeInternal.c
+  X64/SnpPageStateTrack.h
   X64/VirtualMemory.c
   X64/VirtualMemory.h
 
@@ -49,9 +54,12 @@
   DebugLib
   MemoryAllocationLib
   PcdLib
+  VmgExitLib
 
 [FeaturePcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdSmmSmramRequire
 
 [FixedPcd]
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpCpuidBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDecompressionScratchEnd
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase
