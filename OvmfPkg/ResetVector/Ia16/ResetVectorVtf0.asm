@@ -56,11 +56,16 @@ guidedStructureStart:
 ;   and SEV_SNP_CPUID_PAGE. A VMM will locate this information using the
 ;   SEV-SNP boot block.
 ;
+;   In addition to Secret and CPUID page, the SEV-SNP boot block also contain
+;   the range of memory that must be pre-validated by the VMM before the execution.
+;
 ; GUID (SEV-SNP boot block): bd39c0c2-2f8e-4243-83e8-1b74cebcb7d9
 ;
 sevSnpBootBlockStart:
     DD      SEV_SNP_SECRETS_PAGE
     DD      SEV_SNP_CPUID_PAGE
+    DD      SEV_SNP_LAUNCH_VALIDATED_START
+    DD      SEV_SNP_LAUNCH_VALIDATED_END
     DW      sevSnpBootBlockEnd - sevSnpBootBlockStart
     DB      0xC2, 0xC0, 0x39, 0xBD, 0x8e, 0x2F, 0x43, 0x42
     DB      0x83, 0xE8, 0x1B, 0x74, 0xCE, 0xBC, 0xB7, 0xD9
