@@ -37,6 +37,7 @@
 [Sources.X64]
   X64/MemEncryptSevLib.c
   X64/PeiDxeVirtualMemory.c
+  X64/PeiDxeSnpSetPageState.c
   X64/PeiSnpSystemRamValidate.c
   X64/SnpPageStateTrack.c
   X64/SnpPageStateChangeInternal.c

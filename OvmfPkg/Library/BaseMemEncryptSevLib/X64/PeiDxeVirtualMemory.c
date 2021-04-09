@@ -17,6 +17,7 @@
 #include <Register/Cpuid.h>
 
 #include "VirtualMemory.h"
+#include "SnpSetPageState.h"
 
 STATIC BOOLEAN mAddressEncMaskChecked = FALSE;
 STATIC UINT64  mAddressEncMask;
@@ -700,22 +701,34 @@ SetMemoryEncDec (
   UINT64                         AddressEncMask;
   BOOLEAN                        IsWpEnabled;
   RETURN_STATUS                  Status;
+  BOOLEAN                        NeedPageStateChange;
+  PHYSICAL_ADDRESS               OrigPhysicalAddress;
+  UINTN                          OrigLength;
 
   //
   // Set PageMapLevel4Entry to suppress incorrect compiler/analyzer warnings.
   //
   PageMapLevel4Entry = NULL;
 
+  //
+  // When SEV-SNP is active, before clearing the encryption attribute from
+  // the page table we also need to update the RMP entry for the memory
+  // region to make the region shared. And after setting the encryption
+  // attribute, the region must be made private in the RMP table.
+  //
+  NeedPageStateChange = MemEncryptSevSnpIsEnabled ();
+
   DEBUG ((
     DEBUG_VERBOSE,
-    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u\n",
+    "%a:%a: Cr3Base=0x%Lx Physical=0x%Lx Length=0x%Lx Mode=%a CacheFlush=%u Rmpupdate=%u\n",
     gEfiCallerBaseName,
     __FUNCTION__,
     Cr3BaseAddress,
     PhysicalAddress,
     (UINT64)Length,
     (Mode == SetCBit) ? "Encrypt" : "Decrypt",
-    (UINT32)CacheFlush
+    (UINT32)CacheFlush,
+    (UINT32)NeedPageStateChange
     ));
 
   //
@@ -749,6 +762,18 @@ SetMemoryEncDec (
     DisableReadOnlyPageWriteProtect ();
   }
 
+  //
+  // Make the RMP updates before clearing the encryption attribute in the page table.
+  //
+  if (NeedPageStateChange && (Mode == ClearCBit)) {
+    SnpSetMemoryShared (PhysicalAddress, Length);
+  }
+
+  //
+  // Save the values, we need it later during the Page state change.
+  //
+  OrigPhysicalAddress = PhysicalAddress;
+  OrigLength = Length;
   Status = EFI_SUCCESS;
 
   while (Length != 0)
@@ -922,6 +947,13 @@ SetMemoryEncDec (
   // Flush TLB
   //
   CpuFlushTlb();
+
+  //
+  // Make the RMP updates after setting the encryption attribute in the page table.
+  //
+  if (NeedPageStateChange && (Mode == SetCBit)) {
+    SnpSetMemoryPrivate (OrigPhysicalAddress, OrigLength);
+  }
 
 Done:
   //
