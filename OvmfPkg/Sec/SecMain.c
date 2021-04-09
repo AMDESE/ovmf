@@ -351,6 +351,32 @@ DecompressMemFvs (
     return Status;
   }
 
+  if (MemEncryptSevSnpIsEnabled ()) {
+    EFI_PHYSICAL_ADDRESS    LaunchValidatedBase, LaunchValidatedEnd;
+    UINTN                   Size;
+
+    //
+    // The VMM launch sequence should have validated the memory range from
+    // MEMFD_BASE_ADDRESS to PcdOvmfPeiMemFvBase. The PCD values are also
+    // accessible through PcdOvmfSnpLaunchValidatedStart, and PcdOvmfSnpLaunchValidatedEnd.
+    // The pre-validation was sufficent to access the data pages used in the SEC
+    // phase.
+    //
+    // Now that we are getting ready to decompress firmware volumes, and enter
+    // to PEI phase. Lets validate the code/data pages used for entering to the
+    // PEI phase.
+    //
+    // See FvmainCompactScratchEnd.fdf.inc for more detail.
+    //
+    LaunchValidatedBase =
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedStart);
+    LaunchValidatedEnd = LaunchValidatedBase +
+        (EFI_PHYSICAL_ADDRESS)(UINTN) PcdGet32 (PcdOvmfSnpLaunchValidatedEnd);
+    Size = PcdGet32 (PcdOvmfDecompressionScratchEnd) - LaunchValidatedEnd;
+
+    MemEncryptSevSnpValidateSystemRam (LaunchValidatedEnd, EFI_SIZE_TO_PAGES (Size));
+  }
+
   Status = ExtractGuidedSectionGetInfo (
              Section,
              &OutputBufferSize,
