@@ -57,6 +57,7 @@ typedef struct _SEC_SEV_ES_WORK_AREA {
   UINT64   EncryptionMask;
 
   UINT64   HypervisorFeatures;
+  UINT64   SnpSystemRamValidatedRootAddress;
 } SEC_SEV_ES_WORK_AREA;
 
 //

@@ -38,6 +38,7 @@
   X64/PeiDxeVirtualMemory.c
   X64/SnpPageStateChangeInternal.c
   X64/PeiDxeSnpSetPageState.c
+  X64/SnpPageStateTrack.c
   X64/VirtualMemory.c
   X64/VirtualMemory.h
 
@@ -58,3 +59,6 @@
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask
+
+[FixedPcd]
+  gUefiCpuPkgTokenSpaceGuid.PcdSevEsWorkAreaBase
