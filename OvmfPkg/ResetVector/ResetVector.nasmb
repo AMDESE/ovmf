@@ -76,6 +76,7 @@
   %define SEV_ES_WORK_AREA_SNP (FixedPcdGet32 (PcdSevEsWorkAreaBase) + 1)
   %define SEV_ES_WORK_AREA_RDRAND (FixedPcdGet32 (PcdSevEsWorkAreaBase) + 8)
   %define SEV_ES_WORK_AREA_ENC_MASK (FixedPcdGet32 (PcdSevEsWorkAreaBase) + 16)
+  %define SEV_ES_WORK_AREA_HYPERVISOR_FEATURES (FixedPcdGet32 (PcdSevEsWorkAreaBase) + 24)
   %define SEV_SNP_SECRETS_PAGE FixedPcdGet32 (PcdOvmfSnpSecretsBase)
   %define SEV_SNP_CPUID_PAGE  FixedPcdGet32 (PcdOvmfSnpCpuidBase)
   %define SEV_SNP_LAUNCH_VALIDATED_START FixedPcdGet32 (PcdOvmfSecPageTablesBase)
