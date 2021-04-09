@@ -218,4 +218,19 @@ MemEncryptSevGetAddressRangeState (
   IN UINTN                    Length
   );
 
+/**
+  If SEV-SNP is active then set the page state of the specified virtual
+  address range. This should be called in SEC and PEI phases only.
+
+  @param[in]  BaseAddress             Base address
+  @param[in]  NumPages                Number of pages starting from the base address
+
+**/
+VOID
+EFIAPI
+MemEncryptSevSnpValidateSystemRam (
+  IN PHYSICAL_ADDRESS                   BaseAddress,
+  IN UINTN                              NumPages
+  );
+
 #endif // _MEM_ENCRYPT_SEV_LIB_H_
