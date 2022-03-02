@@ -300,7 +300,7 @@ GetApLoopMode (
     {
       //
       // For SEV-ES (SEV-SNP is also considered SEV-ES), force AP in Hlt-loop
-      // mode in order to use the GHCB protocol for starting APs
+      // mode in order to use the GHCB AP Reset Hold protocol for starting APs.
       //
       ApLoopMode = ApInHltLoop;
     }
@@ -341,6 +341,7 @@ SortApicId (
   UINT32           ApCount;
   CPU_INFO_IN_HOB  *CpuInfoInHob;
   volatile UINT32  *StartupApSignal;
+  SEV_ES_SAVE_AREA *SevEsSaveArea;
 
   ApCount      = CpuMpData->CpuCount - 1;
   CpuInfoInHob = (CPU_INFO_IN_HOB *)(UINTN)CpuMpData->CpuInfoInHob;
@@ -368,12 +369,17 @@ SortApicId (
         CopyMem (&CpuInfoInHob[Index1], &CpuInfo, sizeof (CPU_INFO_IN_HOB));
 
         //
-        // Also exchange the StartupApSignal.
+        // Also exchange the StartupApSignal and the SevEsSaveArea.
         //
         StartupApSignal                            = CpuMpData->CpuData[Index3].StartupApSignal;
         CpuMpData->CpuData[Index3].StartupApSignal =
           CpuMpData->CpuData[Index1].StartupApSignal;
         CpuMpData->CpuData[Index1].StartupApSignal = StartupApSignal;
+
+        SevEsSaveArea                              = CpuMpData->CpuData[Index3].SevEsSaveArea;
+        CpuMpData->CpuData[Index3].SevEsSaveArea   =
+          CpuMpData->CpuData[Index1].SevEsSaveArea;
+        CpuMpData->CpuData[Index1].SevEsSaveArea   = SevEsSaveArea;
       }
     }
 
@@ -1189,10 +1195,8 @@ WakeUpAP (
 
       //
       // Wakeup all APs
-      //   Must use the INIT-SIPI-SIPI method for initial configuration in
-      //   order to obtain the APIC ID.
       //
-      if (CpuMpData->SevSnpIsEnabled && (CpuMpData->InitFlag != ApInitConfig)) {
+      if (SevSnpUseCreateAP (CpuMpData)) {
         SevSnpCreateAP (CpuMpData, -1);
       } else {
         SendInitSipiSipiAllExcludingSelf ((UINT32)ExchangeInfo->BufferStart);
@@ -1295,7 +1299,7 @@ WakeUpAP (
         SetSevEsJumpTable (ExchangeInfo->BufferStart);
       }
 
-      if (CpuMpData->SevSnpIsEnabled && (CpuMpData->InitFlag != ApInitConfig)) {
+      if (SevSnpUseCreateAP (CpuMpData)) {
         SevSnpCreateAP (CpuMpData, (INTN)ProcessorNumber);
       } else {
         SendInitSipiSipi (

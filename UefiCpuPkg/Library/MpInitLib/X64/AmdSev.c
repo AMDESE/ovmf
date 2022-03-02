@@ -28,29 +28,32 @@ SevSnpCreateSaveArea (
   )
 {
   SEV_ES_SAVE_AREA          *SaveArea;
+  UINTN                     PageCount;
   IA32_CR0                  ApCr0;
   IA32_CR0                  ResetCr0;
   IA32_CR4                  ApCr4;
   IA32_CR4                  ResetCr4;
   UINTN                     StartIp;
   UINT8                     SipiVector;
-  UINT32                    RmpAdjustStatus;
   UINT64                    VmgExitStatus;
   MSR_SEV_ES_GHCB_REGISTER  Msr;
   GHCB                      *Ghcb;
   BOOLEAN                   InterruptState;
   UINT64                    ExitInfo1;
   UINT64                    ExitInfo2;
+  EFI_STATUS                VmsaStatus;
 
   //
-  // Allocate a single page for the SEV-ES Save Area and initialize it.
+  // Allocate the memory for the SEV-ES Save Area (and possibly the CAA)
+  // and initialize it.
   //
-  SaveArea = AllocateReservedPages (1);
+  PageCount = VmgExitSvsmPresent () ? 2 : 1;
+  SaveArea = AllocateReservedPages (PageCount);
   if (!SaveArea) {
     return;
   }
 
-  ZeroMem (SaveArea, EFI_PAGE_SIZE);
+  ZeroMem (SaveArea, EFI_PAGE_SIZE * PageCount);
 
   //
   // Propogate the CR0.NW and CR0.CD setting to the AP
@@ -126,24 +129,20 @@ SevSnpCreateSaveArea (
 
   //
   // Set the SEV-SNP specific fields for the save area:
-  //   VMPL - always VMPL0
+  //   VMPL - based on current mode
   //   SEV_FEATURES - equivalent to the SEV_STATUS MSR right shifted 2 bits
   //
-  SaveArea->Vmpl        = 0;
+  SaveArea->Vmpl        = VmgExitGetVmpl ();
   SaveArea->SevFeatures = AsmReadMsr64 (MSR_SEV_STATUS) >> 2;
 
   //
-  // To turn the page into a recognized VMSA page, issue RMPADJUST:
-  //   Target VMPL but numerically higher than current VMPL
-  //   Target PermissionMask is not used
+  // Turn the page into a recognized VMSA page
   //
-  RmpAdjustStatus = SevSnpRmpAdjust (
-                      (EFI_PHYSICAL_ADDRESS)(UINTN)SaveArea,
-                      TRUE
-                      );
-  ASSERT (RmpAdjustStatus == 0);
+  VmsaStatus = VmgExitVmsaRmpAdjust (SaveArea, ApicId, TRUE);
+  ASSERT_EFI_ERROR (VmsaStatus);
 
   ExitInfo1  = (UINT64)ApicId << 32;
+  ExitInfo1 |= (UINT64)SaveArea->Vmpl << 16;
   ExitInfo1 |= SVM_VMGEXIT_SNP_AP_CREATE;
   ExitInfo2  = (UINT64)(UINTN)SaveArea;
 
@@ -163,28 +162,22 @@ SevSnpCreateSaveArea (
 
   ASSERT (VmgExitStatus == 0);
   if (VmgExitStatus != 0) {
-    RmpAdjustStatus = SevSnpRmpAdjust (
-                        (EFI_PHYSICAL_ADDRESS)(UINTN)SaveArea,
-                        FALSE
-                        );
-    if (RmpAdjustStatus == 0) {
-      FreePages (SaveArea, 1);
-    } else {
+    VmsaStatus = VmgExitVmsaRmpAdjust (SaveArea, ApicId, FALSE);
+    if (EFI_ERROR (VmsaStatus)) {
       DEBUG ((DEBUG_INFO, "SEV-SNP: RMPADJUST failed, leaking VMSA page\n"));
+    } else {
+      FreePages (SaveArea, PageCount);
     }
 
     SaveArea = NULL;
   }
 
   if (CpuData->SevEsSaveArea) {
-    RmpAdjustStatus = SevSnpRmpAdjust (
-                        (EFI_PHYSICAL_ADDRESS)(UINTN)CpuData->SevEsSaveArea,
-                        FALSE
-                        );
-    if (RmpAdjustStatus == 0) {
-      FreePages (CpuData->SevEsSaveArea, 1);
-    } else {
+    VmsaStatus = VmgExitVmsaRmpAdjust (CpuData->SevEsSaveArea, ApicId, FALSE);
+    if (EFI_ERROR (VmsaStatus)) {
       DEBUG ((DEBUG_INFO, "SEV-SNP: RMPADJUST failed, leaking VMSA page\n"));
+    } else {
+      FreePages (CpuData->SevEsSaveArea, PageCount);
     }
   }
 
@@ -207,17 +200,55 @@ SevSnpCreateAP (
   CPU_INFO_IN_HOB  *CpuInfoInHob;
   CPU_AP_DATA      *CpuData;
   UINTN            Index;
+  UINTN            MaxIndex;
   UINT32           ApicId;
+  GHCB_APIC_IDS    *GhcbApicIds;
 
   ASSERT (CpuMpData->MpCpuExchangeInfo->BufferStart < 0x100000);
 
   CpuInfoInHob = (CPU_INFO_IN_HOB *)(UINTN)CpuMpData->CpuInfoInHob;
 
   if (ProcessorNumber < 0) {
-    for (Index = 0; Index < CpuMpData->CpuCount; Index++) {
+    GhcbApicIds = (GHCB_APIC_IDS *)(UINTN)PcdGet64 (PcdSevSnpApicIds);
+
+    if (CpuMpData->InitFlag == ApInitConfig) {
+      //
+      // APs have not been started, so CpuCount is not "known" yet.
+      // Use the retrieved APIC IDs to start the APs and fill out the
+      // MpLib CPU information properly.
+      //
+      ASSERT(GhcbApicIds != NULL);
+
+      MaxIndex = MIN (
+                   GhcbApicIds->NumEntries,
+                   PcdGet32 (PcdCpuMaxLogicalProcessorNumber)
+                   );
+    } else {
+      //
+      // APs have been previously started.
+      //
+      MaxIndex = CpuMpData->CpuCount;
+    }
+
+    for (Index = 0; Index < MaxIndex; Index++) {
       if (Index != CpuMpData->BspNumber) {
         CpuData = &CpuMpData->CpuData[Index];
-        ApicId  = CpuInfoInHob[Index].ApicId,
+
+        if (CpuMpData->InitFlag == ApInitConfig) {
+          ApicId  = GhcbApicIds->ApicIds[Index];
+
+          //
+          // For the first boot, use the BSP register information.
+          //
+          CopyMem (
+            &CpuData->VolatileRegisters,
+            &CpuMpData->CpuData[0].VolatileRegisters,
+            sizeof (CpuData->VolatileRegisters)
+            );
+        } else {
+          ApicId  = CpuInfoInHob[Index].ApicId;
+        }
+
         SevSnpCreateSaveArea (CpuMpData, CpuData, ApicId);
       }
     }
@@ -230,34 +261,31 @@ SevSnpCreateAP (
 }
 
 /**
-  Issue RMPADJUST to adjust the VMSA attribute of an SEV-SNP page.
+  Determine if the SEV-SNP AP Create protocol should be used.
 
-  @param[in]  PageAddress
-  @param[in]  VmsaPage
+  @param[in]  CpuMpData  Pointer to CPU MP Data
 
-  @return  RMPADJUST return value
+  @retval     TRUE       Use SEV-SNP AP Create protocol
+  @retval     FALSE      Do not use SEV-SNP AP Create protocol
 **/
-UINT32
-SevSnpRmpAdjust (
-  IN  EFI_PHYSICAL_ADDRESS  PageAddress,
-  IN  BOOLEAN               VmsaPage
+BOOLEAN
+SevSnpUseCreateAP (
+  IN  CPU_MP_DATA  *CpuMpData
   )
 {
-  UINT64  Rdx;
-
   //
-  // The RMPADJUST instruction is used to set or clear the VMSA bit for a
-  // page. The VMSA change is only made when running at VMPL0 and is ignored
-  // otherwise. If too low a target VMPL is specified, the instruction can
-  // succeed without changing the VMSA bit when not running at VMPL0. Using a
-  // target VMPL level of 1, RMPADJUST will return a FAIL_PERMISSION error if
-  // not running at VMPL0, thus ensuring that the VMSA bit is set appropriately
-  // when no error is returned.
+  // The AP Create protocol is used for an SEV-SNP guest if
+  //   - The initial configuration has been performed already or
+  //   - PcdSevSnpApicIds is non-zero.
   //
-  Rdx = 1;
-  if (VmsaPage) {
-    Rdx |= RMPADJUST_VMSA_PAGE_BIT;
+  if (!CpuMpData->SevSnpIsEnabled) {
+    return FALSE;
   }
 
-  return AsmRmpAdjust ((UINT64)PageAddress, 0, Rdx);
+  if (CpuMpData->InitFlag == ApInitConfig &&
+      PcdGet64 (PcdSevSnpApicIds) == 0) {
+    return FALSE;
+  }
+
+  return TRUE;
 }
