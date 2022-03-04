@@ -22,6 +22,8 @@
 
 [Sources.common]
   VmgExitLib.c
+  VmgExitSvsm.c
+  VmgExitSvsm.h
   VmgExitVcHandler.c
   VmgExitVcHandler.h
   SecVmgExitVcHandler.c
@@ -44,5 +46,7 @@
 [FixedPcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBackupBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecGhcbBackupSize
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretsBase
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSnpSecretsSize
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfCpuidBase
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfCpuidSize
