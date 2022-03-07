@@ -39,4 +39,37 @@ typedef PACKED struct {
   UINT8  SvsmBuffer[SIZE_4KB - 8];
 } SVSM_CAA;
 
+typedef union {
+  struct {
+    UINT64  PageSize   : 2;
+    UINT64  Action     : 1;
+    UINT64  IgnoreCf   : 1;
+    UINT64  Reserved_2 : 8;
+    UINT64  Address    : 52;
+  };
+  UINT64  Uint64;
+} SVSM_PVALIDATE_ENTRY;
+
+typedef PACKED struct {
+  UINT16  Entries;
+  UINT16  Next;
+
+  UINT8   Reserved_1[4];
+
+  SVSM_PVALIDATE_ENTRY  Entry[];
+} SVSM_PVALIDATE_REQUEST;
+
+typedef union {
+  SVSM_PVALIDATE_REQUEST  PvalidateRequest;
+} SVSM_REQUEST;
+
+typedef union {
+  struct {
+    UINT32  CallId;
+    UINT32  Protocol;
+  };
+
+  UINT64  Uint64;
+} SVSM_FUNCTION;
+
 #endif

@@ -21,7 +21,6 @@
 #include "SnpPageStateChange.h"
 
 #define IS_ALIGNED(x, y)  ((((x) & (y - 1)) == 0))
-#define PAGES_PER_LARGE_ENTRY  512
 
 STATIC
 UINTN
@@ -62,68 +61,6 @@ SnpPageStateFailureTerminate (
 
   ASSERT (FALSE);
   CpuDeadLoop ();
-}
-
-/**
- This function issues the PVALIDATE instruction to validate or invalidate the memory
- range specified. If PVALIDATE returns size mismatch then it retry validating with
- smaller page size.
-
- */
-STATIC
-VOID
-PvalidateRange (
-  IN  SNP_PAGE_STATE_CHANGE_INFO  *Info,
-  IN  BOOLEAN                     Validate
-  )
-{
-  UINTN  Address, RmpPageSize, Ret, Index;
-  UINTN  StartIndex, EndIndex;
-
-  StartIndex = Info->Header.CurrentEntry;
-  EndIndex   = Info->Header.EndEntry;
-
-  for ( ; StartIndex <= EndIndex; StartIndex++) {
-    //
-    // Get the address and the page size from the Info.
-    //
-    Address     = Info->Entry[StartIndex].GuestFrameNumber << EFI_PAGE_SHIFT;
-    RmpPageSize = Info->Entry[StartIndex].PageSize;
-
-    Ret = AsmPvalidate (RmpPageSize, Validate, Address);
-
-    //
-    // If we fail to validate due to size mismatch then try with the
-    // smaller page size. This senario will occur if the backing page in
-    // the RMP entry is 4K and we are validating it as a 2MB.
-    //
-    if ((Ret == PVALIDATE_RET_SIZE_MISMATCH) && (RmpPageSize == PvalidatePageSize2MB)) {
-      for (Index = 0; Index < PAGES_PER_LARGE_ENTRY; Index++) {
-        Ret = AsmPvalidate (PvalidatePageSize4K, Validate, Address);
-        if (Ret) {
-          break;
-        }
-
-        Address = Address + EFI_PAGE_SIZE;
-      }
-    }
-
-    //
-    // If validation failed then do not continue.
-    //
-    if (Ret) {
-      DEBUG ((
-        DEBUG_ERROR,
-        "%a:%a: Failed to %a address 0x%Lx Error code %d\n",
-        gEfiCallerBaseName,
-        __FUNCTION__,
-        Validate ? "Validate" : "Invalidate",
-        Address,
-        Ret
-        ));
-      SnpPageStateFailureTerminate ();
-    }
-  }
 }
 
 STATIC
@@ -292,7 +229,7 @@ InternalSetPageState (
     // invalidate the pages before making the page shared in the RMP table.
     //
     if (State == SevSnpPageShared) {
-      PvalidateRange (Info, FALSE);
+      VmgExitPvalidate (Info, FALSE);
     }
 
     //
@@ -305,7 +242,7 @@ InternalSetPageState (
     // validate the pages after it has been added in the RMP table.
     //
     if (State == SevSnpPagePrivate) {
-      PvalidateRange (Info, TRUE);
+      VmgExitPvalidate (Info, TRUE);
     }
 
     BaseAddress = NextAddress;
