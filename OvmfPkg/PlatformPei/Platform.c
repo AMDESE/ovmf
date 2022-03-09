@@ -343,6 +343,7 @@ InitializePlatform (
 
   mPlatformInfoHob.SmmSmramRequire     = FeaturePcdGet (PcdSmmSmramRequire);
   mPlatformInfoHob.SevEsIsEnabled      = MemEncryptSevEsIsEnabled ();
+  mPlatformInfoHob.SevSnpIsEnabled     = MemEncryptSevSnpIsEnabled ();
   mPlatformInfoHob.PcdPciMmio64Size    = PcdGet64 (PcdPciMmio64Size);
   mPlatformInfoHob.DefaultMaxCpuNumber = PcdGet32 (PcdCpuMaxLogicalProcessorNumber);
 

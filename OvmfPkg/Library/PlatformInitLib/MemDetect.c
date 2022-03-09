@@ -955,6 +955,20 @@ PlatformQemuInitializeRamForS3 (
         );
     }
 
+    if (PlatformInfoHob->SevSnpIsEnabled) {
+      //
+      // If SEV-SNP is enabled, reserve the CAA memory area.
+      //
+      // Since this memory range will be used by the Reset Vector on S3
+      // resume, it must be reserved as ACPI NVS.
+      //
+      BuildMemoryAllocationHob (
+        (EFI_PHYSICAL_ADDRESS)(UINTN)PcdGet32 (PcdOvmfSecSvsmCaaBase),
+        (UINT64)(UINTN)PcdGet32 (PcdOvmfSecSvsmCaaSize),
+        EfiACPIMemoryNVS
+        );
+    }
+
  #endif
   }
 

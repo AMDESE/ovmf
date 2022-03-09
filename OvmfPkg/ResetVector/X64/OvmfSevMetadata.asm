@@ -26,6 +26,9 @@ BITS  64
 ;
 %define OVMF_SECTION_TYPE_CPUID           0x3
 
+;
+; The SVSM Calling Area Address (CAA)
+%define OVMF_SECTION_TYPE_SVSM_CAA        0x4
 
 ALIGN 16
 
@@ -64,6 +67,12 @@ CpuidSec:
   DD  CPUID_BASE
   DD  CPUID_SIZE
   DD  OVMF_SECTION_TYPE_CPUID
+
+; SVSM CAA page
+SvsmCaa:
+  DD  SVSM_CAA_BASE
+  DD  SVSM_CAA_SIZE
+  DD  OVMF_SECTION_TYPE_SVSM_CAA
 
 ; Region need to be pre-validated by the hypervisor
 PreValidate3:

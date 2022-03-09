@@ -18,6 +18,7 @@ typedef struct {
 
   UINT64               PcdConfidentialComputingGuestAttr;
   BOOLEAN              SevEsIsEnabled;
+  BOOLEAN              SevSnpIsEnabled;
 
   UINT32               BootMode;
   BOOLEAN              S3Supported;
