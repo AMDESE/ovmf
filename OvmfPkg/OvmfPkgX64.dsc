@@ -54,6 +54,11 @@
   DEFINE LSI_SCSI_ENABLE         = FALSE
 
   #
+  # Defines for SEV-SNP
+  #
+  DEFINE SEV_SNP_MEM_PARTIAL_ACCEPT = 0
+
+  #
   # Flash size selection. Setting FD_SIZE_IN_KB on the command line directly to
   # one of the supported values, in place of any of the convenience macros, is
   # permitted.
@@ -645,6 +650,9 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdGhcbSize|0
   gUefiCpuPkgTokenSpaceGuid.PcdSevEsIsEnabled|0
 
+  # Accept memory size.
+  gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSevSnpAcceptPartialMemorySize|$(SEV_SNP_MEM_PARTIAL_ACCEPT)
+  
 !if $(SMM_REQUIRE) == TRUE
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35TsegMbytes|8
   gUefiOvmfPkgTokenSpaceGuid.PcdQ35SmramAtDefaultSmbase|FALSE

@@ -52,6 +52,32 @@ SevSnpIsVmpl0 (
 }
 
 /**
+  Compares the StartAddress-EndAddress range against pre-validated ranges to
+  check for overlap.
+
+  @param[in] StartAddress        The start of a range to check overlap against.
+  @param[in] EndAddress          The end of a range to check overlap against.
+  @param[out] OverlapRange       If there is overlap, will contain the range
+                                 that overlapped.
+
+  @retval TRUE   The StartAddress to EndAddress range overlaps with the range
+                 written to OverlapRange.
+  @retval FALSE  The StartAddress to EndAddress range does not overlap with any
+                 of pre-validated ranges.
+ **/
+BOOLEAN
+EFIAPI
+MemEncryptDetectPreValidatedOverlap (
+  IN    PHYSICAL_ADDRESS              StartAddress,
+  IN    PHYSICAL_ADDRESS              EndAddress,
+  OUT   SEV_SNP_PRE_VALIDATED_RANGE   *OverlapRange
+  )
+{
+  ASSERT(FALSE);
+  return FALSE;
+}
+
+/**
   Pre-validate the system RAM when SEV-SNP is enabled in the guest VM.
 
   @param[in]  BaseAddress             Base address

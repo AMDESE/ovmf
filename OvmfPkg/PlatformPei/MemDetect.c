@@ -46,6 +46,10 @@ STATIC UINT32  mS3AcpiReservedMemorySize;
 
 STATIC UINT16  mQ35TsegMbytes;
 
+EFI_PHYSICAL_ADDRESS mPeiMemoryBase;
+
+EFI_PHYSICAL_ADDRESS mPeiMemoryLength;
+
 BOOLEAN  mQ35SmramAtDefaultSmbase;
 
 UINT32  mQemuUc32Base;
@@ -688,6 +692,8 @@ PublishPeiMemory (
     }
   }
 
+  mPeiMemoryBase = MemoryBase;
+  mPeiMemoryLength = MemorySize;
   //
   // MEMFD_BASE_ADDRESS separates the SMRAM at the default SMBASE from the
   // normal boot permanent PEI RAM. Regarding the S3 boot path, the S3

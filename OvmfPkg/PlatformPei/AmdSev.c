@@ -24,6 +24,31 @@
 
 #include "Platform.h"
 
+#define MEGABYTE_SHIFT     20
+
+UINT64  mSevSnpAcceptMemSize = 0;
+
+STATIC
+UINTN
+GetAcceptSize (
+  VOID
+  )
+{
+  UINTN AcceptSize;
+  AcceptSize = FixedPcdGet64 (PcdSevSnpAcceptPartialMemorySize);
+
+  //
+  // If specified accept size is equal to or less than zero, accept all of the memory.
+  // Else transfer the size in megabyte to the number in byte.
+  //
+  if (AcceptSize <= 0) {
+    AcceptSize = ~(UINT64) 0;
+    return AcceptSize;
+  }
+
+  return AcceptSize << MEGABYTE_SHIFT;
+}
+
 STATIC
 UINT64
 GetHypervisorFeature (
@@ -44,11 +69,27 @@ AmdSevSnpInitialize (
   EFI_HOB_RESOURCE_DESCRIPTOR  *ResourceHob;
   UINT64                       HvFeatures;
   EFI_STATUS                   PcdStatus;
+  EFI_PHYSICAL_ADDRESS          PhysicalStart;
+  EFI_PHYSICAL_ADDRESS          PhysicalEnd;
+  UINT64                        ResourceLength;
+  UINT64                        PeiPartialAccept;
+  EFI_PHYSICAL_ADDRESS          PeiMemoryEnd;
+  EFI_PHYSICAL_ADDRESS          PreAcceptedStart;
+  EFI_PHYSICAL_ADDRESS          PreAcceptedEnd;
+  UINT64                        AccumulateAccepted;
 
   if (!MemEncryptSevSnpIsEnabled ()) {
     return;
   }
 
+  mSevSnpAcceptMemSize = GetAcceptSize ();
+
+  // PEI free memory overlaps with system memory higher than the acceptmemsize,
+  // and should be explicitly accepted. If partial acceptance overlaps with the
+  // PEI region, then PeiPartialAccept is the amount over the memory base that
+  // is accepted.
+  PeiPartialAccept = 0;
+  PeiMemoryEnd = mPeiMemoryBase + mPeiMemoryLength;
   //
   // Query the hypervisor feature using the VmgExit and set the value in the
   // hypervisor features PCD.
@@ -57,19 +98,145 @@ AmdSevSnpInitialize (
   PcdStatus  = PcdSet64S (PcdGhcbHypervisorFeatures, HvFeatures);
   ASSERT_RETURN_ERROR (PcdStatus);
 
+  AccumulateAccepted = 0;
+  PreAcceptedStart = ~(EFI_PHYSICAL_ADDRESS)0;
+  PreAcceptedEnd = 0;
   //
-  // Iterate through the system RAM and validate it.
+  // Iterate through the system RAM and validate up to mSevSnpAcceptMemSize.
   //
   for (Hob.Raw = GetHobList (); !END_OF_HOB_LIST (Hob); Hob.Raw = GET_NEXT_HOB (Hob)) {
-    if ((Hob.Raw != NULL) && (GET_HOB_TYPE (Hob) == EFI_HOB_TYPE_RESOURCE_DESCRIPTOR)) {
-      ResourceHob = Hob.ResourceDescriptor;
+    if (Hob.Raw != NULL && GET_HOB_TYPE (Hob) == EFI_HOB_TYPE_RESOURCE_DESCRIPTOR &&
+        AccumulateAccepted < mSevSnpAcceptMemSize) {
+        ResourceHob = Hob.ResourceDescriptor;
 
-      if (ResourceHob->ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) {
+        if (ResourceHob->ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) {
+          ResourceLength = Hob.ResourceDescriptor->ResourceLength;
+          PhysicalStart = ResourceHob->PhysicalStart;
+          PhysicalEnd = PhysicalStart + ResourceLength;
+
+          if (AccumulateAccepted + ResourceLength > mSevSnpAcceptMemSize) {
+          //
+          // If the memory can't be accepted completely, accept the part of it
+          // to meet the SEV_SNP_PARTIAL_ACCEPTED_MEM_SIZE.
+          //
+          ResourceLength = mSevSnpAcceptMemSize - AccumulateAccepted;
+          PhysicalEnd = ResourceHob->PhysicalStart + ResourceLength;
+        }
+
+        // If this is the hob that contains PEI memory, account for what is
+        // accepted above memorybase.
+        if (PhysicalEnd > mPeiMemoryBase &&
+            PhysicalStart < PeiMemoryEnd) {
+          PeiPartialAccept = PhysicalEnd - mPeiMemoryBase;
+        }
+
         MemEncryptSevSnpPreValidateSystemRam (
           ResourceHob->PhysicalStart,
-          EFI_SIZE_TO_PAGES ((UINTN)ResourceHob->ResourceLength)
+          EFI_SIZE_TO_PAGES ((UINTN) ResourceLength)
           );
+        AccumulateAccepted += ResourceLength;
       }
+    }
+  }
+
+  // Now accept what hasn't been accepted of PEI memory.
+  if (mPeiMemoryBase + PeiPartialAccept < PeiMemoryEnd) {
+    MemEncryptSevSnpPreValidateSystemRam (
+      mPeiMemoryBase + PeiPartialAccept,
+      EFI_SIZE_TO_PAGES (mPeiMemoryLength - PeiPartialAccept)
+      );
+  }
+}
+
+/**
+  Transfer the PEI HobList to the final HobList for Dxe
+**/
+VOID
+AmdSevTransferHobs (
+  VOID
+  )
+{
+  EFI_PEI_HOB_POINTERS        Hob;
+  EFI_RESOURCE_TYPE           ResourceType;
+  EFI_RESOURCE_ATTRIBUTE_TYPE ResourceAttribute;
+  EFI_RESOURCE_ATTRIBUTE_TYPE ResourceAttributeUnaccepted;
+  EFI_PHYSICAL_ADDRESS        PhysicalStart;
+  EFI_PHYSICAL_ADDRESS        PhysicalEnd;
+  EFI_PHYSICAL_ADDRESS        PeiMemoryEnd;
+  SEV_SNP_PRE_VALIDATED_RANGE OverlapRange;
+  UINT64                      ResourceLength;
+
+  if (!MemEncryptSevSnpIsEnabled ()) {
+    return;
+  }
+
+  // PEI free memory overlaps with system memory higher than the acceptmemsize,
+  // and should be explicitly accepted. If partial acceptance overlaps with the
+  // PEI region, then PeiPartialAccept is the amount over the memory base that
+  // is accepted.
+  PeiMemoryEnd = mPeiMemoryBase + mPeiMemoryLength;
+
+  for (Hob.Raw = GetHobList(); !END_OF_HOB_LIST (Hob);  Hob.Raw = GET_NEXT_HOB (Hob)) {
+    if (Hob.Header->HobType == EFI_HOB_TYPE_RESOURCE_DESCRIPTOR) {
+      ResourceAttribute = Hob.ResourceDescriptor->ResourceAttribute;
+      ResourceLength    = Hob.ResourceDescriptor->ResourceLength;
+      ResourceType      = Hob.ResourceDescriptor->ResourceType;
+      PhysicalStart     = Hob.ResourceDescriptor->PhysicalStart;
+
+      if (ResourceType == EFI_RESOURCE_SYSTEM_MEMORY) {
+        ResourceAttribute |= EFI_RESOURCE_ATTRIBUTE_PRESENT | EFI_RESOURCE_ATTRIBUTE_INITIALIZED;
+        ResourceAttributeUnaccepted = ResourceAttribute &
+           ~(EFI_RESOURCE_ATTRIBUTE_TESTED | EFI_RESOURCE_ATTRIBUTE_ENCRYPTED);
+        PhysicalEnd = PhysicalStart + ResourceLength;
+
+        // This HOB can overlap with multiple pre-accepted ranges. A HOB never
+        // intersects and does not overlap with a pre-accepted range.
+        //
+        // We'll get each overlapped range in increasing order.
+        //
+        // For each range that it overlaps, there are three potential ranges to
+        // consider:
+        //   - Memory before the overlap: Known to be unaccepted.
+        //   - The overlapped memory: Known accepted (system memory).
+        //   - Memory after the overlap: Either not in the HOB or unaccepted
+        //                               followed by unknown (never accepted).
+        //
+        // The memory after the overlap, if it is in the HOB, will be added as
+        // SYSTEM_MEMORY in its entirety. This iteration will reach it later and
+        // split and classify it appropriately.
+        //
+        if (!MemEncryptDetectPreValidatedOverlap(PhysicalStart, PhysicalEnd, &OverlapRange)) {
+          ResourceType = EFI_RESOURCE_MEMORY_UNACCEPTED;
+          ResourceAttribute = ResourceAttributeUnaccepted;
+        } else {
+          // TODO(dionnaglaze): Keep the pre-validated as EFI_RESOURCE_SYSTEM_MEMORY,
+          // and all other parts of of HOB as unaccepted.
+          if (PhysicalStart < OverlapRange.StartAddress) {
+            BuildResourceDescriptorHob(
+                EFI_RESOURCE_MEMORY_UNACCEPTED,
+                ResourceAttributeUnaccepted,
+                PhysicalStart,
+                OverlapRange.StartAddress - PhysicalStart);
+          }
+          PhysicalStart = OverlapRange.StartAddress;
+          ResourceLength = OverlapRange.EndAddress - OverlapRange.StartAddress;
+
+          if (PhysicalEnd > OverlapRange.EndAddress) {
+            // There is more memory in the HOB after the overlapped region. Add
+            // another SYSTEM_MEMORY hob for processing later in the iteration.
+            BuildResourceDescriptorHob(
+                EFI_RESOURCE_SYSTEM_MEMORY,
+                ResourceAttribute,
+                OverlapRange.EndAddress,
+                PhysicalEnd - OverlapRange.EndAddress);
+          }
+        }
+
+        Hob.ResourceDescriptor->ResourceAttribute = ResourceAttribute;
+        Hob.ResourceDescriptor->ResourceLength = ResourceLength;
+        Hob.ResourceDescriptor->PhysicalStart = PhysicalStart;
+        Hob.ResourceDescriptor->ResourceType = ResourceType;
+       }
     }
   }
 }

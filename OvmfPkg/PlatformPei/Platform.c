@@ -786,6 +786,7 @@ InitializePlatform (
   AmdSevInitialize ();
   MiscInitialization ();
   InstallFeatureControlCallback ();
+  AmdSevSnpTransferHobs();
 
   return EFI_SUCCESS;
 }

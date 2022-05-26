@@ -121,4 +121,8 @@ extern BOOLEAN  mQ35SmramAtDefaultSmbase;
 
 extern UINT32  mQemuUc32Base;
 
+extern EFI_PHYSICAL_ADDRESS mPeiMemoryBase;
+
+extern EFI_PHYSICAL_ADDRESS mPeiMemoryLength;
+
 #endif // _PLATFORM_PEI_H_INCLUDED_

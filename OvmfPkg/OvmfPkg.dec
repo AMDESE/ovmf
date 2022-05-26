@@ -369,6 +369,9 @@
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecValidatedStart|0|UINT32|0x62
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecValidatedEnd|0|UINT32|0x63
 
+  ## The minimum amount of memory that will be guaranteed accepted in SEV-SNP.
+  gUefiOvmfPkgTokenSpaceGuid.PcdSevSnpAcceptPartialMemorySize|0|UINT64|0x64
+
 [PcdsDynamic, PcdsDynamicEx]
   gUefiOvmfPkgTokenSpaceGuid.PcdEmuVariableEvent|0|UINT64|2
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfFlashVariablesEnable|FALSE|BOOLEAN|0x10
