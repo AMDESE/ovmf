@@ -23,6 +23,8 @@ STATIC BOOLEAN          mAddressEncMaskChecked = FALSE;
 STATIC UINT64           mAddressEncMask;
 STATIC PAGE_TABLE_POOL  *mPageTablePool = NULL;
 
+STATIC VOID             *mPscBuffer = NULL;
+
 typedef enum {
   SetCBit,
   ClearCBit
@@ -762,7 +764,19 @@ SetMemoryEncDec (
   // The InternalSetPageState() is used for setting the page state in the RMP table.
   //
   if (!Mmio && (Mode == ClearCBit) && MemEncryptSevSnpIsEnabled ()) {
-    InternalSetPageState (PhysicalAddress, EFI_SIZE_TO_PAGES (Length), SevSnpPageShared, FALSE);
+    if (mPscBuffer == NULL) {
+      mPscBuffer = AllocateReservedPages (1);
+      ASSERT (mPscBuffer != NULL);
+    }
+
+    InternalSetPageState (
+      PhysicalAddress,
+      EFI_SIZE_TO_PAGES (Length),
+      SevSnpPageShared,
+      FALSE,
+      mPscBuffer,
+      EFI_PAGE_SIZE
+      );
   }
 
   //
@@ -951,11 +965,18 @@ SetMemoryEncDec (
   // The InternalSetPageState() is used for setting the page state in the RMP table.
   //
   if ((Mode == SetCBit) && MemEncryptSevSnpIsEnabled ()) {
+    if (mPscBuffer == NULL) {
+      mPscBuffer = AllocateReservedPages (1);
+      ASSERT (mPscBuffer != NULL);
+    }
+
     InternalSetPageState (
       OrigPhysicalAddress,
       EFI_SIZE_TO_PAGES (OrigLength),
       SevSnpPagePrivate,
-      FALSE
+      FALSE,
+      mPscBuffer,
+      EFI_PAGE_SIZE
       );
   }
 

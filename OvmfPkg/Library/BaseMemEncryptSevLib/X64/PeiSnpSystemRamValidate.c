@@ -78,11 +78,14 @@ MemEncryptSevSnpPreValidateSystemRam (
 {
   PHYSICAL_ADDRESS         EndAddress;
   SNP_PRE_VALIDATED_RANGE  OverlapRange;
+  SEC_SEV_ES_WORK_AREA     *SevEsWorkArea;
   EFI_STATUS               Status;
 
   if (!MemEncryptSevSnpIsEnabled ()) {
     return;
   }
+
+  SevEsWorkArea = (SEC_SEV_ES_WORK_AREA *)FixedPcdGet32 (PcdSevEsWorkAreaBase);
 
   EndAddress = BaseAddress + EFI_PAGES_TO_SIZE (NumPages);
 
@@ -113,7 +116,14 @@ MemEncryptSevSnpPreValidateSystemRam (
       if (BaseAddress < OverlapRange.StartAddress) {
         NumPages = EFI_SIZE_TO_PAGES (OverlapRange.StartAddress - BaseAddress);
 
-        InternalSetPageState (BaseAddress, NumPages, SevSnpPagePrivate, TRUE);
+        InternalSetPageState (
+          BaseAddress,
+          NumPages,
+          SevSnpPagePrivate,
+          TRUE,
+          SevEsWorkArea->WorkBuffer,
+          sizeof (SevEsWorkArea->WorkBuffer)
+          );
       }
 
       BaseAddress = OverlapRange.EndAddress;
@@ -122,7 +132,14 @@ MemEncryptSevSnpPreValidateSystemRam (
 
     // Validate the remaining pages.
     NumPages = EFI_SIZE_TO_PAGES (EndAddress - BaseAddress);
-    InternalSetPageState (BaseAddress, NumPages, SevSnpPagePrivate, TRUE);
+    InternalSetPageState (
+      BaseAddress,
+      NumPages,
+      SevSnpPagePrivate,
+      TRUE,
+      SevEsWorkArea->WorkBuffer,
+      sizeof (SevEsWorkArea->WorkBuffer)
+      );
     BaseAddress = EndAddress;
   }
 }
