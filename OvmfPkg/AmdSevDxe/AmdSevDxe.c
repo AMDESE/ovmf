@@ -28,16 +28,6 @@
 // Present, initialized, tested bits defined in MdeModulePkg/Core/Dxe/DxeMain.h
 #define EFI_MEMORY_INTERNAL_MASK  0x0700000000000000ULL
 
-STATIC CONFIDENTIAL_COMPUTING_SNP_BLOB_LOCATION  mSnpBootDxeTable = {
-  SIGNATURE_32 ('A',                                    'M', 'D', 'E'),
-  1,
-  0,
-  (UINT64)(UINTN)FixedPcdGet32 (PcdOvmfSnpSecretsBase),
-  FixedPcdGet32 (PcdOvmfSnpSecretsSize),
-  (UINT64)(UINTN)FixedPcdGet32 (PcdOvmfCpuidBase),
-  FixedPcdGet32 (PcdOvmfCpuidSize),
-};
-
 STATIC EFI_HANDLE  mAmdSevDxeHandle = NULL;
 
 STATIC BOOLEAN  mAcceptAllMemoryAtEBS = TRUE;
@@ -170,6 +160,37 @@ STATIC EDKII_MEMORY_ACCEPT_PROTOCOL  mMemoryAcceptProtocol = {
   AmdSevMemoryAccept
 };
 
+STATIC
+EFI_STATUS
+AllocateConfidentialComputingBlob (
+  OUT CONFIDENTIAL_COMPUTING_SNP_BLOB_LOCATION  **CcBlobPtr
+  )
+{
+  EFI_STATUS                                Status;
+  CONFIDENTIAL_COMPUTING_SNP_BLOB_LOCATION  *CcBlob;
+
+  Status = gBS->AllocatePool (
+                  EfiACPIReclaimMemory,
+                  sizeof (CONFIDENTIAL_COMPUTING_SNP_BLOB_LOCATION),
+                  (VOID **)&CcBlob
+                  );
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  CcBlob->Header                 = SIGNATURE_32 ('A', 'M', 'D', 'E');
+  CcBlob->Version                = 1;
+  CcBlob->Reserved1              = 0;
+  CcBlob->SecretsPhysicalAddress = (UINT64)(UINTN)FixedPcdGet32 (PcdOvmfSnpSecretsBase);
+  CcBlob->SecretsSize            = FixedPcdGet32 (PcdOvmfSnpSecretsSize);
+  CcBlob->CpuidPhysicalAddress   = (UINT64)(UINTN)FixedPcdGet32 (PcdOvmfCpuidBase);
+  CcBlob->CpuidLSize             = FixedPcdGet32 (PcdOvmfCpuidSize);
+
+  *CcBlobPtr = CcBlob;
+
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 AmdSevDxeEntryPoint (
@@ -177,10 +198,12 @@ AmdSevDxeEntryPoint (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS                       Status;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *AllDescMap;
-  UINTN                            NumEntries;
-  UINTN                            Index;
+  EFI_STATUS                                Status;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR           *AllDescMap;
+  UINTN                                     NumEntries;
+  UINTN                                     Index;
+  CONFIDENTIAL_COMPUTING_SNP_BLOB_LOCATION  *SnpBootDxeTable;
+
 
   //
   // Do nothing when SEV is not enabled
@@ -317,13 +340,25 @@ AmdSevDxeEntryPoint (
       DEBUG ((DEBUG_ERROR, "AllowUnacceptedMemory event creation for EventBeforeExitBootServices failed.\n"));
     }
 
+    Status = AllocateConfidentialComputingBlob (&SnpBootDxeTable);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((
+        DEBUG_ERROR,
+        "%a: AllocateConfidentialComputingBlob(): %r\n",
+        __FUNCTION__,
+        Status
+        ));
+      ASSERT (FALSE);
+      CpuDeadLoop ();
+    }
+
     //
     // If its SEV-SNP active guest then install the CONFIDENTIAL_COMPUTING_SEV_SNP_BLOB.
     // It contains the location for both the Secrets and CPUID page.
     //
     return gBS->InstallConfigurationTable (
                   &gConfidentialComputingSevSnpBlobGuid,
-                  &mSnpBootDxeTable
+                  SnpBootDxeTable
                   );
   }
 
