@@ -7588,6 +7588,34 @@ AsmVmgExit (
   );
 
 /**
+  Executes a VMGEXIT instruction (VMMCALL with a REP prefix) with arguments
+  and return code
+
+  Executes a VMGEXIT instruction placing the specified arguments in the
+  corresponding registers before invocation and returning the returned RAX
+  register value as a return code. This function is intended for use with an
+  SVSM. This function is only available on IA-32 and x64.
+
+  @param[in]  Rcx  Value to be placed in the RCX register
+  @param[in]  Rdx  Value to be placed in the RDX register
+  @param[in]  R8   Value to be placed in the R8 register
+  @param[in]  R9   Value to be placed in the R9 register
+  @param[in]  Rax  Value to be placed in the RAX register
+
+  @return          Value of the RAX register on return
+
+**/
+UINT32
+EFIAPI
+AsmVmgExitSvsm (
+  IN UINT64  Rcx,
+  IN UINT64  Rdx,
+  IN UINT64  R8,
+  IN UINT64  R9,
+  IN UINT64  Rax
+  );
+
+/**
   Patch the immediate operand of an IA32 or X64 instruction such that the byte,
   word, dword or qword operand is encoded at the end of the instruction's
   binary representation.
