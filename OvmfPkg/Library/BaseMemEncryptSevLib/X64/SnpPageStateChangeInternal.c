@@ -114,7 +114,7 @@ PvalidateRange (
         DEBUG_ERROR,
         "%a:%a: Failed to %a address 0x%Lx Error code %d\n",
         gEfiCallerBaseName,
-        __FUNCTION__,
+        __func__,
         Validate ? "Validate" : "Invalidate",
         Address,
         Ret
@@ -238,7 +238,7 @@ InternalSetPageState (
     DEBUG_VERBOSE,
     "%a:%a Address 0x%Lx - 0x%Lx State = %a LargeEntry = %d\n",
     gEfiCallerBaseName,
-    __FUNCTION__,
+    __func__,
     BaseAddress,
     EndAddress,
     State == SevSnpPageShared ? "Shared" : "Private",

@@ -122,7 +122,7 @@ InitMmu (
   // Set supervisor translation mode to Bare mode
   //
   RiscVSetSupervisorAddressTranslationRegister ((UINT64)SATP_MODE_OFF << 60);
-  DEBUG ((DEBUG_INFO, "%a: Set Supervisor address mode to bare-metal mode.\n", __FUNCTION__));
+  DEBUG ((DEBUG_INFO, "%a: Set Supervisor address mode to bare-metal mode.\n", __func__));
 }
 
 /**
@@ -190,13 +190,13 @@ MemoryPeimInitialization (
   GetFirmwareContextPointer (&FirmwareContext);
 
   if (FirmwareContext == NULL) {
-    DEBUG ((DEBUG_ERROR, "%a: Firmware Context is NULL\n", __FUNCTION__));
+    DEBUG ((DEBUG_ERROR, "%a: Firmware Context is NULL\n", __func__));
     return EFI_UNSUPPORTED;
   }
 
   FdtPointer = (VOID *)FirmwareContext->FlattenedDeviceTree;
   if (FdtPointer == NULL) {
-    DEBUG ((DEBUG_ERROR, "%a: Invalid FDT pointer\n", __FUNCTION__));
+    DEBUG ((DEBUG_ERROR, "%a: Invalid FDT pointer\n", __func__));
     return EFI_UNSUPPORTED;
   }
 
@@ -230,7 +230,7 @@ MemoryPeimInitialization (
         DEBUG ((
           DEBUG_INFO,
           "%a: System RAM @ 0x%lx - 0x%lx\n",
-          __FUNCTION__,
+          __func__,
           CurBase,
           CurBase + CurSize - 1
           ));
@@ -249,7 +249,7 @@ MemoryPeimInitialization (
         DEBUG ((
           DEBUG_ERROR,
           "%a: Failed to parse FDT memory node\n",
-          __FUNCTION__
+          __func__
           ));
       }
     }
