@@ -50,21 +50,20 @@ SevSnpCreateAP (
 }
 
 /**
-  Issue RMPADJUST to adjust the VMSA attribute of an SEV-SNP page.
+  Determine if the SEV-SNP AP Create protocol should be used.
 
-  @param[in]  PageAddress
-  @param[in]  VmsaPage
+  @param[in]  CpuMpData  Pointer to CPU MP Data
 
-  @return  RMPADJUST return value
+  @retval     TRUE       Use SEV-SNP AP Create protocol
+  @retval     FALSE      Do not use SEV-SNP AP Create protocol
 **/
-UINT32
-SevSnpRmpAdjust (
-  IN  EFI_PHYSICAL_ADDRESS  PageAddress,
-  IN  BOOLEAN               VmsaPage
+BOOLEAN
+SevSnpUseCreateAP (
+  IN  CPU_MP_DATA  *CpuMpData
   )
 {
   //
-  // RMPADJUST is not supported in 32-bit mode
+  // SEV-SNP is not supported on 32-bit build.
   //
-  return RETURN_UNSUPPORTED;
+  return FALSE;
 }
