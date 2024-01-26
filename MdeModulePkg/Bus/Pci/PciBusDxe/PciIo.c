@@ -1024,12 +1024,12 @@ PciIoMap (
           return EFI_INVALID_PARAMETER;
       }
 
-      Status = mIoMmuProtocol->SetAttribute (
-                                 mIoMmuProtocol,
-                                 PciIoDevice->Handle,
-                                 *Mapping,
-                                 IoMmuAttribute
-                                 );
+      mIoMmuProtocol->SetAttribute (
+                        mIoMmuProtocol,
+                        PciIoDevice->Handle,
+                        *Mapping,
+                        IoMmuAttribute
+                        );
     }
   }
 
